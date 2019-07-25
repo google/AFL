@@ -138,7 +138,7 @@ contains a good example of the input data normally expected by the targeted
 application. There are two basic rules:
 
   - Keep the files small. Under 1 kB is ideal, although not strictly necessary.
-    For a discussion of why size matters, see perf_tips.txt.
+    For a discussion of why size matters, see [perf_tips.txt](docs/perf_tips.txt).
 
   - Use multiple test cases only if they are functionally different from
     each other. There is no point in using fifty different vacation photos
@@ -181,7 +181,7 @@ You can use -t and -m to override the default timeout and memory limit for the
 executed process; rare examples of targets that may need these settings touched
 include compilers and video decoders.
 
-Tips for optimizing fuzzing performance are discussed in perf_tips.txt.
+Tips for optimizing fuzzing performance are discussed in [perf_tips.txt](docs/perf_tips.txt).
 
 Note that afl-fuzz starts by performing an array of deterministic fuzzing
 steps, which can take several days, but tend to produce neat test cases. If you
@@ -190,9 +190,10 @@ fuzzers - add the -d option to the command line.
 
 ## 7) Interpreting output
 
-See the status_screen.txt file for information on how to interpret the
-displayed stats and monitor the health of the process. Be sure to consult this
-file especially if any UI elements are highlighted in red.
+See the [status_screen.txt](docs/status_screen.txt) file for information on
+how to interpret the displayed stats and monitor the health of the process.
+Be sure to consult this file especially if any UI elements are highlighted in
+red.
 
 The fuzzing process will continue until you press Ctrl-C. At minimum, you want
 to allow the fuzzer to complete one queue cycle, which may take anywhere from a
@@ -252,11 +253,11 @@ see [http://lcamtuf.coredump.cx/afl/plot/](http://lcamtuf.coredump.cx/afl/plot/)
 Every instance of afl-fuzz takes up roughly one core. This means that on
 multi-core systems, parallelization is necessary to fully utilize the hardware.
 For tips on how to fuzz a common target on multiple cores or multiple networked
-machines, please refer to parallel_fuzzing.txt.
+machines, please refer to [parallel_fuzzing.txt](docs/parallel_fuzzing.txt).
 
 The parallel fuzzing mode also offers a simple way for interfacing AFL to other
 fuzzers, to symbolic or concolic execution engines, and so forth; again, see the
-last section of parallel_fuzzing.txt for tips.
+last section of [parallel_fuzzing.txt](docs/parallel_fuzzing.txt) for tips.
 
 ## 9) Fuzzer dictionaries
 
@@ -338,7 +339,7 @@ file, attempts to sequentially flip bytes, and observes the behavior of the
 tested program. It then color-codes the input based on which sections appear to
 be critical, and which are not; while not bulletproof, it can often offer quick
 insights into complex file formats. More info about its operation can be found
-near the end of technical_details.txt.
+near the end of [technical_details.txt](docs/technical_details.txt).
 
 ## 11) Going beyond crashes
 
