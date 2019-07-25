@@ -109,7 +109,7 @@ automatically enable code hardening options that make it easier to detect
 simple memory bugs. Libdislocator, a helper library included with AFL (see
 libdislocator/README.dislocator) can help uncover heap corruption issues, too.
 
-PS. ASAN users are advised to review notes_for_asan.txt file for important
+PS. ASAN users are advised to review [notes_for_asan.txt](docs/notes_for_asan.txt) file for important
 caveats.
 
 ## 4) Instrumenting binary-only apps
@@ -121,8 +121,10 @@ with a version of QEMU running in the lesser-known "user space emulation" mode.
 QEMU is a project separate from AFL, but you can conveniently build the
 feature by doing:
 
+```shell
 $ cd qemu_mode
 $ ./build_qemu_support.sh
+```
 
 For additional instructions and caveats, see qemu_mode/README.qemu.
 
@@ -157,13 +159,17 @@ store its findings, plus a path to the binary to test.
 
 For target binaries that accept input directly from stdin, the usual syntax is:
 
+```shell
 $ ./afl-fuzz -i testcase_dir -o findings_dir /path/to/program [...params...]
+```
 
 For programs that take input from a file, use '@@' to mark the location in
 the target's command line where the input file name should be placed. The
 fuzzer will substitute this for you:
 
+```shell
 $ ./afl-fuzz -i testcase_dir -o findings_dir /path/to/program @@
+```
 
 You can also use the -f option to have the mutated data written to a specific
 file. This is useful if the program expects a particular file extension or so.
@@ -262,7 +268,7 @@ redundant verbiage - notably including HTML, SQL, or JavaScript.
 To avoid the hassle of building syntax-aware tools, afl-fuzz provides a way to
 seed the fuzzing process with an optional dictionary of language keywords,
 magic headers, or other special tokens associated with the targeted data type
-- and use that to reconstruct the underlying grammar on the go:
+-- and use that to reconstruct the underlying grammar on the go:
 
   [http://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html](http://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html)
 
@@ -406,8 +412,8 @@ Here are some of the most important caveats for AFL:
     experimental/post_library/.
 
   - There are some unfortunate trade-offs with ASAN and 64-bit binaries. This
-    isn't due to any specific fault of afl-fuzz; see notes_for_asan.txt for
-    tips.
+    isn't due to any specific fault of afl-fuzz; see [notes_for_asan.txt](docs/notes_for_asan.txt)
+    for tips.
 
   - There is no direct support for fuzzing network services, background
     daemons, or interactive apps that require UI interaction to work. You may
