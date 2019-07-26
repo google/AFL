@@ -1,4 +1,3 @@
-=========
 ChangeLog
 =========
 
@@ -1342,7 +1341,7 @@ Version 1.35b:
 --------------
 
   - Cleaned up regular expressions in some of the scripts to avoid errors
-    on *BSD systems. Spotted by Jonathan Gray.
+    on \*BSD systems. Spotted by Jonathan Gray.
 
 --------------
 Version 1.34b:
@@ -2284,7 +2283,7 @@ Version 0.52b:
     too. Note that this breaks the ability to properly resume older sessions 
     - sorry about that.
 
-    (To fix this, simply move <out_dir>/.state/* from an older run
+    (To fix this, simply move "<out_dir>/.state/*" from an older run
     to <out_dir>/.state/deterministic_done/*.)
 
 --------------

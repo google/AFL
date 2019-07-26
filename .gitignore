@@ -10,3 +10,6 @@ afl-gotcpu
 afl-showmap
 afl-tmin
 as
+
+# Built documentation
+docs/_build/
