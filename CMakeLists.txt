@@ -3,6 +3,7 @@ project(afl)
 
 include(cmake/options.cmake)
 include(cmake/utils.cmake)
+include(cmake/packaging.cmake)
 
 set(common_header_list
   alloc-inl.h
@@ -12,7 +13,6 @@ set(common_header_list
 )
 
 function(aflMain)
-  getProjectVersion(afl_version)
   printUserMessages()
 
   generateCompilerTester()
@@ -27,8 +27,6 @@ function(aflMain)
 endfunction()
 
 function(printUserMessages)
-  message(STATUS "Building version: ${afl_version}")
-
   if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
     message(WARNING "LLVM users: see llvm_mode/README.llvm for a faster alternative to afl-gcc.")
   endif()
@@ -225,8 +223,8 @@ function(generateInstallTargets)
   )
 
   set(source_file_list
-    afl-plot
-    afl-cmin
+    #afl-plot
+    #afl-cmin
     afl-whatsup
   )
 
@@ -244,7 +242,7 @@ function(generateInstallTargets)
   install(TARGETS ${target_list} DESTINATION "bin")
 
   foreach(source_file ${source_file_list})
-    install(FILES "${source_file}" DESTINATION "bin" PERMISSIONS WORLD_READ WORLD_EXECUTE)
+    install(FILES ${source_file_list} DESTINATION "bin" PERMISSIONS WORLD_READ WORLD_EXECUTE)
   endforeach()
 
   foreach(binary_file ${binary_file_list})
