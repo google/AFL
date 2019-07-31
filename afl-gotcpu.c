@@ -49,8 +49,14 @@
 #include "types.h"
 #include "debug.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 #  define HAVE_AFFINITY 1
+#  if defined(__FreeBSD__)
+#    include <pthread.h>
+#    include <pthread_np.h>
+#    include <sys/cpuset.h>
+#    define cpu_set_t cpuset_t
+#  endif
 #endif /* __linux__ */
 
 
@@ -149,8 +155,13 @@ int main(int argc, char** argv) {
       CPU_ZERO(&c);
       CPU_SET(i, &c);
 
+#if defined(__FreeBSD__)
+      if (pthread_setaffinity_np(pthread_self(), sizeof(c), &c))
+        PFATAL("pthread_setaffinity_np failed");
+#else
       if (sched_setaffinity(0, sizeof(c), &c))
         PFATAL("sched_setaffinity failed");
+#endif
 
       util_perc = measure_preemption(CTEST_CORE_TRG_MS);
 
