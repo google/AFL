@@ -28,11 +28,13 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSIO
 execute_process(
   COMMAND git config --global user.name
   RESULT_VARIABLE user_name
+  OUTPUT_QUIET
 )
 
 execute_process(
   COMMAND git config --global user.email
   RESULT_VARIABLE user_email
+  OUTPUT_QUIET
 )
 
 if(NOT "${user_name}" STREQUAL "" AND NOT "${user_email}" STREQUAL "")
