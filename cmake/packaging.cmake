@@ -14,11 +14,16 @@
 getProjectVersion(afl_version)
 message(STATUS "AFL version: ${afl_version}")
 
-SET(CPACK_GENERATOR "DEB;TGZ;ZIP")
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+  set(CPACK_GENERATOR "ZIP")
+else()
+  set(CPACK_GENERATOR "DEB;TGZ;ZIP")
+endif()
+
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AFL")
 set(CPACK_PACKAGE_VENDOR "Google")
 set(CPACK_PACKAGE_DESCRIPTION "Security-oriented fuzzer using compile-time instrumentation and genetic algorithms")
-SET(CPACK_PACKAGE_INSTALL_DIRECTORY "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
 
 execute_process(
   COMMAND git config --global user.name
