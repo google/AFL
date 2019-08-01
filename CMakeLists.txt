@@ -204,23 +204,54 @@ function(generateBuildTester)
 
   # Create the afl-showmap runners
   set(showmap_output_path0 "${CMAKE_CURRENT_BINARY_DIR}/.test-instr0")
-  set(showmap_output_path1 "${CMAKE_CURRENT_BINARY_DIR}/.test-instr1")
 
   add_custom_command(
-    OUTPUT "${showmap_output_path0}" "${showmap_output_path1}"
+    OUTPUT "${showmap_output_path0}"
     COMMAND "${CMAKE_COMMAND}" -E echo "0" | "$<TARGET_FILE:afl-showmap>" -m none -q -o "${showmap_output_path0}" "${test_binary_path}"
-    COMMAND "${CMAKE_COMMAND}" -E echo "1" | "$<TARGET_FILE:afl-showmap>" -m none -q -o "${showmap_output_path1}" "${test_binary_path}"
-    COMMAND "${CMAKE_COMMAND}" -E compare_files "${showmap_output_path0}" "${showmap_output_path1}"
-    COMMENT "Testing the build"
+    COMMENT "Generating: ${showmap_output_path0}"
     VERBATIM
   )
 
   add_custom_target(
-    test_build
-    DEPENDS "${showmap_output_path0}" "${showmap_output_path1}"
+    test-instr0_generator
+    DEPENDS "${showmap_output_path0}"
   )
 
-  add_dependencies(test_build test-instr_generator)
+  add_dependencies(test-instr0_generator
+    afl-showmap
+    test-instr_generator
+  )
+
+  set(showmap_output_path1 "${CMAKE_CURRENT_BINARY_DIR}/.test-instr1")
+
+  add_custom_command(
+    OUTPUT "${showmap_output_path1}"
+    COMMAND "${CMAKE_COMMAND}" -E echo "1" | "$<TARGET_FILE:afl-showmap>" -m none -q -o "${showmap_output_path1}" "${test_binary_path}"
+    COMMENT "Generating: ${showmap_output_path1}"
+    VERBATIM
+  )
+
+  add_custom_target(
+    test-instr1_generator
+    DEPENDS "${showmap_output_path1}"
+  )
+
+  add_dependencies(test-instr1_generator
+    afl-showmap
+    test-instr_generator
+  )
+
+  add_custom_target(
+    test_build
+    COMMAND "${CMAKE_COMMAND}" -E compare_files "${showmap_output_path0}" "${showmap_output_path1}" 2> /dev/null || "${CMAKE_COMMAND}" -E echo "All right, the instrumentation seems to be working!"
+    COMMENT "Testing the build"
+    VERBATIM
+  )
+
+  add_dependencies(test_build
+    test-instr0_generator
+    test-instr1_generator
+  )
 endfunction()
 
 function(generateInstallTargets)
