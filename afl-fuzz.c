@@ -3385,6 +3385,7 @@ static void find_timeout(void) {
 static void write_stats_file(double bitmap_cvg, double stability, double eps) {
 
   static double last_bcvg, last_stab, last_eps;
+  static struct rusage usage;
 
   u8* fn = alloc_printf("%s/fuzzer_stats", out_dir);
   s32 fd;
@@ -3456,6 +3457,19 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
               persistent_mode || deferred_mode) ? "" : "default",
              orig_cmdline);
              /* ignore errors */
+
+  /* Get rss value from the children
+     We must have killed the forkserver process and called waitpid
+     before calling getrusage */
+  if (getrusage(RUSAGE_CHILDREN, &usage)){
+      WARNF("getrusage failed");
+  }
+  else if (usage.ru_maxrss == 0){
+    fprintf(f, "peak_rss_mb       : not available while afl is running\n");
+  }
+  else{
+    fprintf(f, "peak_rss_mb       : %zu\n", usage.ru_maxrss);
+  }
 
   fclose(f);
 
@@ -8070,6 +8084,11 @@ int main(int argc, char** argv) {
   }
 
   if (queue_cur) show_stats();
+
+  /* Now that we've killed the forkserver, we wait for it to be able to get rusage stats. */
+  if( waitpid(forksrv_pid, NULL, 0) <= 0 ) {
+    WARNF("error waitpid\n");
+  }
 
   write_bitmap();
   write_stats_file(0, 0, 0);
