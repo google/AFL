@@ -181,6 +181,7 @@ EXP_ST u64 total_crashes,             /* Total number of crashes          */
            unique_tmouts,             /* Timeouts with unique signatures  */
            unique_hangs,              /* Hangs with unique signatures     */
            total_execs,               /* Total execve() calls             */
+           slowest_exec_ms,           /* Slowest testcase non hang in ms  */
            start_time,                /* Unix start time (ms)             */
            last_path_time,            /* Time for most recent path (ms)   */
            last_crash_time,           /* Time for most recent crash (ms)  */
@@ -2272,6 +2273,7 @@ static u8 run_target(char** argv, u32 timeout) {
 
   static struct itimerval it;
   static u32 prev_timed_out = 0;
+  static u64 exec_ms = 0;
 
   int status = 0;
   u32 tb4;
@@ -2419,6 +2421,12 @@ static u8 run_target(char** argv, u32 timeout) {
   }
 
   if (!WIFSTOPPED(status)) child_pid = 0;
+  
+  getitimer (ITIMER_REAL, &it);
+  exec_ms = (u64) timeout - (it.it_value.tv_sec * 1000 + it.it_value.tv_usec / 1000);
+  if (slowest_exec_ms < exec_ms){
+    slowest_exec_ms = exec_ms;
+  }
 
   it.it_value.tv_sec = 0;
   it.it_value.tv_usec = 0;
@@ -3441,7 +3449,8 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
              "afl_banner        : %s\n"
              "afl_version       : " VERSION "\n"
              "target_mode       : %s%s%s%s%s%s%s\n"
-             "command_line      : %s\n",
+             "command_line      : %s\n"
+             "slowest_exec_ms   : %llu\n",
              start_time / 1000, get_cur_time() / 1000, getpid(),
              queue_cycle ? (queue_cycle - 1) : 0, total_execs, eps,
              queued_paths, queued_favored, queued_discovered, queued_imported,
@@ -3455,7 +3464,7 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
              persistent_mode ? "persistent " : "", deferred_mode ? "deferred " : "",
              (qemu_mode || dumb_mode || no_forkserver || crash_mode ||
               persistent_mode || deferred_mode) ? "" : "default",
-             orig_cmdline);
+             orig_cmdline, slowest_exec_ms);
              /* ignore errors */
 
   /* Get rss value from the children
