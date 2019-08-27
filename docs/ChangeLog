@@ -20,7 +20,7 @@ to get on with the times.
 Version 2.54b (2019-08-27):
 ---------------------------
 
-  - Fix compilation errors for QEMU mode for recent glibc.
+  - Fixed compilation errors for QEMU mode for recent glibc.
   - Made it possible to compile AFL with `-std=c11` and `-D_GNU_SOURCE`.
   - Minor documentation improvements.
 
