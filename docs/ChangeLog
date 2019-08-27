@@ -17,6 +17,14 @@ is 2.41b. If you're stuck on an earlier release, it's strongly advisable
 to get on with the times.
 
 ---------------------------
+Version 2.54b (2019-08-27):
+---------------------------
+
+  - Fix compilation errors for QEMU mode for recent glibc.
+  - Made it possible to compile AFL with `-std=c11` and `-D_GNU_SOURCE`.
+  - Minor documentation improvements.
+
+---------------------------
 Version 2.53b (2019-07-25):
 ---------------------------
 
