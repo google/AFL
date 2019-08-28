@@ -2421,7 +2421,7 @@ static u8 run_target(char** argv, u32 timeout) {
   }
 
   if (!WIFSTOPPED(status)) child_pid = 0;
-  
+
   getitimer (ITIMER_REAL, &it);
   exec_ms = (u64) timeout - (it.it_value.tv_sec * 1000 + it.it_value.tv_usec / 1000);
   if (slowest_exec_ms < exec_ms){
