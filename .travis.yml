@@ -1,10 +1,14 @@
 language: c
 
 env:
-  - AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 AFL_NO_UI=1
+  - AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 AFL_NO_UI=1 AFL_STOP_MANUALLY=1
+  - AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 AFL_NO_UI=1 AFL_EXIT_WHEN_DONE=1 
+  # This config is disabled because the fuzz target tested does not crash
+  # - AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 AFL_NO_UI=1 AFL_BENCH_UNTIL_CRASH=1
+  - AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 AFL_NO_UI=1 AFL_BENCH_JUST_ONE=1
 
 before_install:
-  - sudo apt update
+  - sudo apt update || echo TODO fix it
   - sudo apt install -y libtool libtool-bin automake bison libglib2.0
 
 script:
@@ -12,9 +16,18 @@ script:
   - ./afl-gcc ./test-instr.c -o test-instr
   - mkdir seeds; mkdir out
   - echo "" > seeds/nil_seed
-  - timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr
+  - if [ -z "$AFL_STOP_MANUALLY" ]; 
+    then ./afl-fuzz -i seeds -o out/ -- ./test-instr; 
+    else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr;
+    fi
+  - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
   - cd qemu_mode
   - ./build_qemu_support.sh
   - cd ..
   - gcc ./test-instr.c -o test-no-instr
-  - timeout --preserve-status 5s ./afl-fuzz -Q -i seeds -o out/ -- ./test-no-instr
+  - if [ -z "$AFL_STOP_MANUALLY" ]; 
+    then ./afl-fuzz -Q -i seeds -o out/ -- ./test-no-instr; 
+    else timeout --preserve-status 5s ./afl-fuzz -Q -i seeds -o out/ -- ./test-no-instr;
+    fi
+  - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 11700 -p 5000
+
