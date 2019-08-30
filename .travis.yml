@@ -16,6 +16,8 @@ script:
   - rm -r out/*
   - ./afl-clang ./test-instr.c -o test-instr-clang
   - timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang
+  - make clean
+  - CC=clang CXX=clang++ make
   - cd qemu_mode
   - ./build_qemu_support.sh
   - cd ..

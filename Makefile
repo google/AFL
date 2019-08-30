@@ -42,6 +42,7 @@ else
   TEST_CC   = afl-clang
 endif
 
+
 COMM_HDR    = alloc-inl.h config.h debug.h types.h
 
 all: test_x86 $(PROGS) afl-as test_build all_done
@@ -49,6 +50,8 @@ all: test_x86 $(PROGS) afl-as test_build all_done
 ifndef AFL_NO_X86
 
 test_x86:
+	@echo "TEST_CC"
+	@echo $(TEST_CC)
 	@echo "[*] Checking for the ability to compile x86 code..."
 	@echo 'main() { __asm__("xorb %al, %al"); }' | $(CC) -w -x c - -o .test || ( echo; echo "Oops, looks like your compiler can't generate x86 code."; echo; echo "Don't panic! You can use the LLVM or QEMU mode, but see docs/INSTALL first."; echo "(To ignore this error, set AFL_NO_X86=1 and try again.)"; echo; exit 1 )
 	@rm -f .test
