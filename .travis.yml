@@ -7,6 +7,7 @@ before_install:
   - sudo apt update
   - sudo apt install -y libtool libtool-bin automake bison libglib2.0
 
+# TODO: Look into splitting off some builds using a build matrix.
 script:
   - make
   - ./afl-gcc ./test-instr.c -o test-instr-gcc
@@ -19,6 +20,8 @@ script:
   - make clean
   - CC=clang CXX=clang++ make
   - cd llvm_mode
+# TODO: Build with different versions of clang/LLVM since LLVM passes don't have
+# a stable API.
   - CC=clang CXX=clang++ LLVM_CONFIG=llvm-config make
   - cd ..
   - rm -r out/*
