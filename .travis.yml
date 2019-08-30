@@ -18,6 +18,12 @@ script:
   - timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang
   - make clean
   - CC=clang CXX=clang++ make
+  - cd llvm_mode
+  - CC=clang CXX=clang++ LLVM_CONFIG=llvm-config make
+  - cd ..
+  - rm -r out/*
+  - ./afl-clang-fast ./test-instr.c -o test-instr-clang-fast
+  - timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang-fast
   - cd qemu_mode
   - ./build_qemu_support.sh
   - cd ..
