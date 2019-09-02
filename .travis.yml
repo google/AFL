@@ -17,15 +17,15 @@ script:
   - mkdir seeds
   - echo "" > seeds/nil_seed
   - if [ -z "$AFL_STOP_MANUALLY" ]; 
-    then ./afl-fuzz -i seeds -o out/ -- ./test-instr; 
+    then ./afl-fuzz -i seeds -o out/ -- ./test-instr-gcc; 
     else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-gcc;
     fi
   - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
   - rm -r out/*
   - ./afl-clang ./test-instr.c -o test-instr-clang
   - if [ -z "$AFL_STOP_MANUALLY" ]; 
-    then ./afl-fuzz -i seeds -o out/ -- test-instr-clang; 
-    else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- test-instr-clang;
+    then ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang; 
+    else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang;
     fi
   - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
   - make clean
@@ -38,7 +38,7 @@ script:
   - rm -r out/*
   - ./afl-clang-fast ./test-instr.c -o test-instr-clang-fast
   - if [ -z "$AFL_STOP_MANUALLY" ]; 
-    then ./afl-fuzz -i seeds -o out/ -- test-instr-clang; 
+    then ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang; 
     else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang-fast;
     fi
   - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
@@ -50,5 +50,5 @@ script:
     then ./afl-fuzz -Q -i seeds -o out/ -- ./test-no-instr; 
     else timeout --preserve-status 5s ./afl-fuzz -Q -i seeds -o out/ -- ./test-no-instr;
     fi
-  - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 11700 -p 5000
+  - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 12000 -p 9000
 
