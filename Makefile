@@ -138,7 +138,7 @@ endif
 	cp -r dictionaries/ $${DESTDIR}$(MISC_PATH)
 
 publish: clean
-	test "`basename $$PWD`" = "afl" || exit 1
+	test "`basename $$PWD`" = "AFL" || exit 1
 	test -f ~/www/afl/releases/$(PROGNAME)-$(VERSION).tgz; if [ "$$?" = "0" ]; then echo; echo "Change program version in config.h, mmkay?"; echo; exit 1; fi
 	cd ..; rm -rf $(PROGNAME)-$(VERSION); cp -pr $(PROGNAME) $(PROGNAME)-$(VERSION); \
 	  tar -cvz -f ~/www/afl/releases/$(PROGNAME)-$(VERSION).tgz $(PROGNAME)-$(VERSION)

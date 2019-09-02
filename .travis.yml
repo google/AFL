@@ -10,15 +10,37 @@ before_install:
   - sudo apt update
   - sudo apt install -y libtool libtool-bin automake bison libglib2.0
 
+# TODO: Look into splitting off some builds using a build matrix.
 script:
   - make
-  - ./afl-gcc ./test-instr.c -o test-instr
-  - mkdir seeds; mkdir out
+  - ./afl-gcc ./test-instr.c -o test-instr-gcc
+  - mkdir seeds
   - echo "" > seeds/nil_seed
   - if [ -z "$AFL_STOP_MANUALLY" ]; 
     then ./afl-fuzz -i seeds -o out/ -- ./test-instr; 
-    else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr;
+    else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-gcc;
     fi
+  - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
+  - rm -r out/*
+  - ./afl-clang ./test-instr.c -o test-instr-clang
+  - if [ -z "$AFL_STOP_MANUALLY" ]; 
+  then ./afl-fuzz -i seeds -o out/ -- test-instr-clang; 
+  else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- test-instr-clang;
+  fi
+  - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
+  - make clean
+  - CC=clang CXX=clang++ make
+  - cd llvm_mode
+# TODO: Build with different versions of clang/LLVM since LLVM passes don't have
+# a stable API.
+  - CC=clang CXX=clang++ LLVM_CONFIG=llvm-config make
+  - cd ..
+  - rm -r out/*
+  - ./afl-clang-fast ./test-instr.c -o test-instr-clang-fast
+  - if [ -z "$AFL_STOP_MANUALLY" ]; 
+  then ./afl-fuzz -i seeds -o out/ -- test-instr-clang; 
+  else timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-instr-clang-fast;
+  fi
   - .travis/check_fuzzer_stats.sh -o out -k peak_rss_mb -v 1450 -p 500
   - cd qemu_mode
   - ./build_qemu_support.sh
