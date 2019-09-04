@@ -2422,9 +2422,10 @@ static u8 run_target(char** argv, u32 timeout) {
 
   if (!WIFSTOPPED(status)) child_pid = 0;
 
-  getitimer (ITIMER_REAL, &it);
-  exec_ms = (u64) timeout - (it.it_value.tv_sec * 1000 + it.it_value.tv_usec / 1000);
-  if (slowest_exec_ms < exec_ms){
+  getitimer(ITIMER_REAL, &it);
+  exec_ms = (u64) timeout - (it.it_value.tv_sec * 1000 + 
+                             it.it_value.tv_usec / 1000);
+  if (slowest_exec_ms < exec_ms) {
     slowest_exec_ms = exec_ms;
   }
 
@@ -3470,14 +3471,18 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
   /* Get rss value from the children
      We must have killed the forkserver process and called waitpid
      before calling getrusage */
-  if (getrusage(RUSAGE_CHILDREN, &usage)){
+  if (getrusage(RUSAGE_CHILDREN, &usage)) {
       WARNF("getrusage failed");
   }
-  else if (usage.ru_maxrss == 0){
+  else if (usage.ru_maxrss == 0) {
     fprintf(f, "peak_rss_mb       : not available while afl is running\n");
   }
   else{
-    fprintf(f, "peak_rss_mb       : %zu\n", usage.ru_maxrss);
+#ifdef __APPLE__
+    fprintf(f, "peak_rss_mb       : %zu\n", usage.ru_maxrss >> 20);
+#else
+    fprintf(f, "peak_rss_mb       : %zu\n", usage.ru_maxrss >> 10);
+#endif /* ^__APPLE__ */
   }
 
   fclose(f);
@@ -8094,14 +8099,14 @@ int main(int argc, char** argv) {
 
   if (queue_cur) show_stats();
 
-  /* if we stopped programmatically, we kill the forkserver and the current runner. 
-     if we stopped manually, this is done by the signal handler */
-  if (stop_soon == 2){
+  /* If we stopped programmatically, we kill the forkserver and the current runner. 
+     If we stopped manually, this is done by the signal handler. */
+  if (stop_soon == 2) {
       if (child_pid > 0) kill(child_pid, SIGKILL);
       if (forksrv_pid > 0) kill(forksrv_pid, SIGKILL);
   }
   /* Now that we've killed the forkserver, we wait for it to be able to get rusage stats. */
-  if( waitpid(forksrv_pid, NULL, 0) <= 0 ) {
+  if (waitpid(forksrv_pid, NULL, 0) <= 0) {
     WARNF("error waitpid\n");
   }
 
