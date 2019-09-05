@@ -3473,11 +3473,9 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
      before calling getrusage */
   if (getrusage(RUSAGE_CHILDREN, &usage)) {
       WARNF("getrusage failed");
-  }
-  else if (usage.ru_maxrss == 0) {
+  } else if (usage.ru_maxrss == 0) {
     fprintf(f, "peak_rss_mb       : not available while afl is running\n");
-  }
-  else{
+  } else {
 #ifdef __APPLE__
     fprintf(f, "peak_rss_mb       : %zu\n", usage.ru_maxrss >> 20);
 #else
