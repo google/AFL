@@ -2423,11 +2423,8 @@ static u8 run_target(char** argv, u32 timeout) {
   if (!WIFSTOPPED(status)) child_pid = 0;
 
   getitimer(ITIMER_REAL, &it);
-  exec_ms = (u64) timeout - (it.it_value.tv_sec * 1000 + 
+  exec_ms = (u64) timeout - (it.it_value.tv_sec * 1000 +
                              it.it_value.tv_usec / 1000);
-  if (slowest_exec_ms < exec_ms) {
-    slowest_exec_ms = exec_ms;
-  }
 
   it.it_value.tv_sec = 0;
   it.it_value.tv_usec = 0;
@@ -2474,6 +2471,12 @@ static u8 run_target(char** argv, u32 timeout) {
 
   if ((dumb_mode == 1 || no_forkserver) && tb4 == EXEC_FAIL_SIG)
     return FAULT_ERROR;
+
+  /* It makes sense to account for the slowest units only if the testcase was run
+  under the user defined timeout. */
+  if (!(timeout > exec_tmout) && (slowest_exec_ms < exec_ms)) {
+    slowest_exec_ms = exec_ms;
+  }
 
   return FAULT_NONE;
 
