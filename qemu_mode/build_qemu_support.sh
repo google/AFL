@@ -178,6 +178,8 @@ if [ "$ORIG_CPU_TARGET" = "" ]; then
 
   unset AFL_INST_RATIO
 
+  # We shouldn't need the /dev/null hack because program isn't compiled with any
+  # optimizations.
   echo 0 | ./afl-showmap -m none -Q -q -o .test-instr0 ./test-instr || exit 1
   echo 1 | ./afl-showmap -m none -Q -q -o .test-instr1 ./test-instr || exit 1
 
