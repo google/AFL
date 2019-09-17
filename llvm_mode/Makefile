@@ -97,6 +97,8 @@ endif
 test_build: $(PROGS)
 	@echo "[*] Testing the CC wrapper and instrumentation output..."
 	unset AFL_USE_ASAN AFL_USE_MSAN AFL_INST_RATIO; AFL_QUIET=1 AFL_PATH=. AFL_CC=$(CC) ../afl-clang-fast $(CFLAGS) ../test-instr.c -o test-instr $(LDFLAGS)
+# Use /dev/null to avoid problems with optimization messing up expected
+# branches. See https://github.com/google/AFL/issues/30.
 	../afl-showmap -m none -q -o .test-instr0 ./test-instr < /dev/null
 	echo 1 | ../afl-showmap -m none -q -o .test-instr1 ./test-instr
 	@rm -f test-instr
