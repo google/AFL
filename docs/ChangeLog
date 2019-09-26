@@ -17,6 +17,22 @@ is 2.41b. If you're stuck on an earlier release, it's strongly advisable
 to get on with the times.
 
 ---------------------------
+Version 2.56b (2019-09-26):
+---------------------------
+
+  - Fixed the mismatch between the released version and the version in the code.
+
+---------------------------
+Version 2.55b (2019-09-19):
+---------------------------
+
+  - Exporting more metrics (peak_rss_mb, slowest_exec_ms).
+
+  - Improved tests.
+
+  - Fixes for bugs and changes in upstream llvm/clang.
+
+---------------------------
 Version 2.54b (2019-08-27):
 ---------------------------
 
