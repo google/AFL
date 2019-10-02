@@ -3380,10 +3380,10 @@ static void find_timeout(void) {
   i = read(fd, tmp, sizeof(tmp) - 1); (void)i; /* Ignore errors */
   close(fd);
 
-  off = strstr(tmp, "exec_timeout   : ");
+  off = strstr(tmp, "exec_timeout      : ");
   if (!off) return;
 
-  ret = atoi(off + 17);
+  ret = atoi(off + 20);
   if (ret <= 4) return;
 
   exec_tmout = ret;
@@ -3449,7 +3449,7 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
              "last_crash        : %llu\n"
              "last_hang         : %llu\n"
              "execs_since_crash : %llu\n"
-             "exec_timeout      : %u\n"
+             "exec_timeout      : %u\n" /* Must match find_timeout() */
              "afl_banner        : %s\n"
              "afl_version       : " VERSION "\n"
              "target_mode       : %s%s%s%s%s%s%s\n"
