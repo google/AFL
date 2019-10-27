@@ -1,8 +1,8 @@
-*** qemu-2.12.1-clean/accel/tcg/cpu-exec.c	2018-08-02 16:48:53.000000000 -0500
---- qemu-2.12.1/accel/tcg/cpu-exec.c	2019-10-26 19:18:44.210890776 -0500
+*** qemu-4.1.0-clean/accel/tcg/cpu-exec.c	2019-08-15 14:01:42.000000000 -0500
+--- qemu-4.1.0/accel/tcg/cpu-exec.c	2019-10-27 00:20:15.997628472 -0500
 ***************
-*** 37,42 ****
---- 37,44 ----
+*** 38,43 ****
+--- 38,45 ----
   #include "sysemu/cpus.h"
   #include "sysemu/replay.h"
   
@@ -12,8 +12,8 @@
   
   typedef struct SyncClocks {
 ***************
-*** 145,150 ****
---- 147,154 ----
+*** 146,151 ****
+--- 148,155 ----
       int tb_exit;
       uint8_t *tb_ptr = itb->tc.ptr;
   
@@ -23,12 +23,12 @@
                              "Trace %d: %p ["
                              TARGET_FMT_lx "/" TARGET_FMT_lx "/%#x] %s\n",
 ***************
-*** 402,407 ****
---- 406,412 ----
-          if (likely(tb == NULL)) {
-              /* if no translated code available, then translate it now */
-              tb = tb_gen_code(cpu, pc, cs_base, flags, cf_mask);
+*** 247,252 ****
+--- 251,257 ----
+          if (tb == NULL) {
+              mmap_lock();
+              tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
 +             AFL_QEMU_CPU_SNIPPET1;
+              mmap_unlock();
           }
   
-          mmap_unlock();

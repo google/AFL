@@ -29,9 +29,9 @@
 #
 
 
-VERSION="2.12.1"
+VERSION="4.1.0"
 QEMU_URL="http://download.qemu-project.org/qemu-${VERSION}.tar.xz"
-QEMU_SHA384="92957551a3a21b1ed48dc70d9dd91905859a5565ec98492ed709a3b64daf7c5a0265d670030ee7e6d16da96436795435"
+QEMU_SHA384="ef5aa7b2a77d45dbbaaf3bcd98b0cd25e367d1b036761b68e8b793f51790fa3c41d0ea31d769e2f909b98fd176172498"
 
 echo "================================================="
 echo "AFL binary-only instrumentation QEMU build script"

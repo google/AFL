@@ -303,11 +303,11 @@ static void afl_wait_tsl(CPUState *cpu, int fd) {
 
     if(!tb) {
       mmap_lock();
-      tb_lock();
+      // tb_lock(); in qemu-4.1.0 cpu_exec_step_atomic no longer locks tb
       // taken from qemu-2.12.1/accel/tcg/cpu-exec.c:240,241
       tb_gen_code(cpu, t.pc, t.cs_base, t.flags, 1 & CF_HASH_MASK);
       mmap_unlock();
-      tb_unlock();
+      // tb_unlock(); see four lines above (no longer locks)
     }
 
   }
