@@ -29,9 +29,9 @@
 #
 
 
-VERSION="2.10.0"
+VERSION="2.12.1"
 QEMU_URL="http://download.qemu-project.org/qemu-${VERSION}.tar.xz"
-QEMU_SHA384="68216c935487bc8c0596ac309e1e3ee75c2c4ce898aab796faa321db5740609ced365fedda025678d072d09ac8928105"
+QEMU_SHA384="92957551a3a21b1ed48dc70d9dd91905859a5565ec98492ed709a3b64daf7c5a0265d670030ee7e6d16da96436795435"
 
 echo "================================================="
 echo "AFL binary-only instrumentation QEMU build script"
@@ -137,8 +137,7 @@ echo "[*] Applying patches..."
 patch -p1 <../patches/elfload.diff || exit 1
 patch -p1 <../patches/cpu-exec.diff || exit 1
 patch -p1 <../patches/syscall.diff || exit 1
-patch -p1 <../patches/configure.diff || exit 1
-patch -p1 <../patches/memfd.diff || exit 1
+patch -p1 <../patches/capstone.diff || exit 1
 
 echo "[+] Patching done."
 
