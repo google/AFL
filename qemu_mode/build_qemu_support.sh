@@ -146,9 +146,12 @@ patch -p1 <../patches/cpu-exec.diff || exit 1
 patch -p1 <../patches/syscall.diff || exit 1
 
 # check to see if we need updated options for libcapstone
-grep /usr/include/capstone/capstone.h -e "CS_OPT_SKIPDATA" 2>&1 >/dev/null
+grep /usr/include/capstone/capstone.h -e "CS_OPT_SKIPDATA" 2>&1 >/dev/null || grep /usr/local/include/capstone/capstone.h -e "CS_OPT_SKIPDATA" 2>&1 >/dev/null
 if [ $? -eq 1 ]; then
-  echo "[!] Too old of libcapstone. Please install >= libcapstone3 from source. "
+  # I have a mahcine on Debian jessie still and can confirm the strech debs work
+  # http://ftp.us.debian.org/debian/pool/main/c/capstone/libcapstone3_3.0.4-1_amd64.deb
+  # http://ftp.us.debian.org/debian/pool/main/c/capstone/libcapstone-dev_3.0.4-1_amd64.deb
+  echo "[-] Error: too old of version libcapstone-dev. Please install >= libcapstone3 from source."
 fi;
 patch -p1 <../patches/capstone.diff || exit 1
 
