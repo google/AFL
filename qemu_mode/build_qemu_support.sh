@@ -62,7 +62,7 @@ if [ ! -f "../afl-showmap" ]; then
 fi
 
 
-for i in libtool wget python automake autoconf sha384sum bison iconv; do
+for i in libtool wget python automake autoconf sha384sum bison iconv flex; do
 
   T=`which "$i" 2>/dev/null`
 
@@ -78,6 +78,13 @@ done
 if [ ! -d "/usr/include/glib-2.0/" -a ! -d "/usr/local/include/glib-2.0/" ]; then
 
   echo "[-] Error: devel version of 'glib2' not found, please install first."
+  exit 1
+
+fi
+
+if [ ! -d "/usr/include/capstone/" -a ! -d "/usr/local/include/capstone/" ]; then
+
+  echo "[-] Error: devel version of 'libcapstone' not found, please install first."
   exit 1
 
 fi
@@ -137,7 +144,14 @@ echo "[*] Applying patches..."
 patch -p1 <../patches/elfload.diff || exit 1
 patch -p1 <../patches/cpu-exec.diff || exit 1
 patch -p1 <../patches/syscall.diff || exit 1
+
+# check to see if we need updated options for libcapstone
+grep /usr/include/capstone/capstone.h -e "CS_OPT_SKIPDATA" 2>&1 >/dev/null
+if [ $? -eq 1 ]; then
+  echo "[!] Too old of libcapstone. Please install >= libcapstone3 from source. "
+fi;
 patch -p1 <../patches/capstone.diff || exit 1
+
 
 echo "[+] Patching done."
 
