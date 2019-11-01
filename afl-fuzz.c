@@ -888,7 +888,7 @@ EXP_ST void read_bitmap(u8* fname) {
 
 static inline u8 has_new_bits(u8* virgin_map) {
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
 
   u64* current = (u64*)trace_bits;
   u64* virgin  = (u64*)virgin_map;
@@ -922,7 +922,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
         /* Looks like we have not found any new bytes yet; see if any non-zero
            bytes in current[] are pristine in virgin[]. */
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
 
         if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
             (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff) ||
@@ -1058,7 +1058,7 @@ static const u8 simplify_lookup[256] = {
 
 };
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
 
 static void simplify_trace(u64* mem) {
 
@@ -1152,7 +1152,7 @@ EXP_ST void init_count_class16(void) {
 }
 
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
 
 static inline void classify_counts(u64* mem) {
 
@@ -2441,7 +2441,7 @@ static u8 run_target(char** argv, u32 timeout) {
 
   tb4 = *(u32*)trace_bits;
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
   classify_counts((u64*)trace_bits);
 #else
   classify_counts((u32*)trace_bits);
@@ -3205,7 +3205,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
       if (!dumb_mode) {
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
         simplify_trace((u64*)trace_bits);
 #else
         simplify_trace((u32*)trace_bits);
@@ -3269,7 +3269,7 @@ keep_as_crash:
 
       if (!dumb_mode) {
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
         simplify_trace((u64*)trace_bits);
 #else
         simplify_trace((u32*)trace_bits);

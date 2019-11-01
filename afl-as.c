@@ -74,7 +74,7 @@ static u32  inst_ratio = 100,   /* Instrumentation probability (%)      */
    instrumentation for whichever mode we were compiled with. This is not
    perfect, but should do the trick for almost all use cases. */
 
-#ifdef __x86_64__
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
 
 static u8   use_64bit = 1;
 
