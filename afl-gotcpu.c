@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
       CPU_SET(i, &c);
 
       if (sched_setaffinity(0, sizeof(c), &c))
-        PFATAL("sched_setaffinity failed");
+        PFATAL("sched_setaffinity failed for cpu %d", i);
 
       util_perc = measure_preemption(CTEST_CORE_TRG_MS);
 
