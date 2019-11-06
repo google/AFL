@@ -33,9 +33,7 @@
 */
 
 #define AFL_MAIN
-#ifdef __ANDROID__
-  #include "android-ashmem.h"
-#endif
+#include "android-ashmem.h"
 #define _GNU_SOURCE
 
 #include <stdio.h>

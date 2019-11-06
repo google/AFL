@@ -1,3 +1,4 @@
+#ifdef __ANDROID__
 #ifndef _ANDROID_ASHMEM_H
 #define _ANDROID_ASHMEM_H
 
@@ -78,4 +79,5 @@ static inline void *shmat (int __shmid, const void *__shmaddr, int __shmflg)
   return ptr;
 }
 
+#endif
 #endif

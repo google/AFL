@@ -29,9 +29,7 @@
 */
 
 #define AFL_MAIN
-#ifdef __ANDROID__
-  #include "android-ashmem.h"
-#endif
+#include "android-ashmem.h"
 #define MESSAGES_TO_STDOUT
 
 #ifndef _GNU_SOURCE
