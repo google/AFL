@@ -891,7 +891,7 @@ EXP_ST void read_bitmap(u8* fname) {
 
 static inline u8 has_new_bits(u8* virgin_map) {
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
 
   u64* current = (u64*)trace_bits;
   u64* virgin  = (u64*)virgin_map;
@@ -905,7 +905,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
 
   u32  i = (MAP_SIZE >> 2);
 
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
   u8   ret = 0;
 
@@ -925,7 +925,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
         /* Looks like we have not found any new bytes yet; see if any non-zero
            bytes in current[] are pristine in virgin[]. */
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
 
         if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
             (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff) ||
@@ -939,7 +939,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
             (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff)) ret = 2;
         else ret = 1;
 
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
       }
 
@@ -1061,7 +1061,7 @@ static const u8 simplify_lookup[256] = {
 
 };
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
 
 static void simplify_trace(u64* mem) {
 
@@ -1118,7 +1118,7 @@ static void simplify_trace(u32* mem) {
 
 }
 
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
 
 /* Destructively classify execution counts in a trace. This is used as a
@@ -1155,7 +1155,7 @@ EXP_ST void init_count_class16(void) {
 }
 
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
 
 static inline void classify_counts(u64* mem) {
 
@@ -1207,7 +1207,7 @@ static inline void classify_counts(u32* mem) {
 
 }
 
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
 
 /* Get rid of shared memory (atexit handler). */
@@ -2444,11 +2444,11 @@ static u8 run_target(char** argv, u32 timeout) {
 
   tb4 = *(u32*)trace_bits;
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
   classify_counts((u64*)trace_bits);
 #else
   classify_counts((u32*)trace_bits);
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
   prev_timed_out = child_timed_out;
 
@@ -3208,11 +3208,11 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
       if (!dumb_mode) {
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
         simplify_trace((u64*)trace_bits);
 #else
         simplify_trace((u32*)trace_bits);
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
         if (!has_new_bits(virgin_tmout)) return keeping;
 
@@ -3272,11 +3272,11 @@ keep_as_crash:
 
       if (!dumb_mode) {
 
-#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#ifdef WORD_SIZE_64
         simplify_trace((u64*)trace_bits);
 #else
         simplify_trace((u32*)trace_bits);
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 
         if (!has_new_bits(virgin_crash)) return keeping;
 
