@@ -78,5 +78,5 @@ static inline void *shmat(int __shmid, const void *__shmaddr, int __shmflg) {
   return ptr;
 }
 
-#endif
-#endif
+#endif /* !_ANDROID_ASHMEM_H */
+#endif /* !__ANDROID__ */
