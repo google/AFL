@@ -3,8 +3,8 @@
 #define _ANDROID_ASHMEM_H
 
 #include <fcntl.h>
-#include <linux/shm.h>
 #include <linux/ashmem.h>
+#include <linux/shm.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
@@ -14,55 +14,52 @@
 #define shmdt bionic_shmdt
 #define shmget bionic_shmget
 #endif
- #include <sys/shm.h>
+#include <sys/shm.h>
 #undef shmat
 #undef shmctl
 #undef shmdt
 #undef shmget
 #include <stdio.h>
 
-#define ASHMEM_DEVICE	"/dev/ashmem"
+#define ASHMEM_DEVICE "/dev/ashmem"
 
-static inline int shmctl(int __shmid, int __cmd, struct shmid_ds *__buf)
-{
-		int ret = 0;
-		if (__cmd == IPC_RMID) {
-			int length = ioctl(__shmid, ASHMEM_GET_SIZE, NULL);
-			struct ashmem_pin pin = {0, length};
-			ret = ioctl(__shmid, ASHMEM_UNPIN, &pin);
-			close(__shmid);
-		}
+static inline int shmctl(int __shmid, int __cmd, struct shmid_ds *__buf) {
+  int ret = 0;
+  if (__cmd == IPC_RMID) {
+    int length = ioctl(__shmid, ASHMEM_GET_SIZE, NULL);
+    struct ashmem_pin pin = {0, length};
+    ret = ioctl(__shmid, ASHMEM_UNPIN, &pin);
+    close(__shmid);
+  }
 
-		return ret;
+  return ret;
 }
 
-static inline int shmget (key_t __key, size_t __size, int __shmflg)
-{
-	int fd,ret;
-	char ourkey[11];
+static inline int shmget(key_t __key, size_t __size, int __shmflg) {
+  int fd, ret;
+  char ourkey[11];
 
-	fd = open(ASHMEM_DEVICE, O_RDWR);
-	if (fd < 0)
-		return fd;
+  fd = open(ASHMEM_DEVICE, O_RDWR);
+  if (fd < 0)
+    return fd;
 
-	sprintf(ourkey,"%d",__key);
-	ret = ioctl(fd, ASHMEM_SET_NAME, ourkey);
-	if (ret < 0)
-		goto error;
+  sprintf(ourkey, "%d", __key);
+  ret = ioctl(fd, ASHMEM_SET_NAME, ourkey);
+  if (ret < 0)
+    goto error;
 
-	ret = ioctl(fd, ASHMEM_SET_SIZE, __size);
-	if (ret < 0)
-		goto error;
+  ret = ioctl(fd, ASHMEM_SET_SIZE, __size);
+  if (ret < 0)
+    goto error;
 
-	return fd;
+  return fd;
 
 error:
-	close(fd);
-	return ret;
+  close(fd);
+  return ret;
 }
 
-static inline void *shmat (int __shmid, const void *__shmaddr, int __shmflg)
-{
+static inline void *shmat(int __shmid, const void *__shmaddr, int __shmflg) {
   int size;
   void *ptr;
 
