@@ -27,6 +27,7 @@
 */
 
 #define AFL_MAIN
+#include "android-ashmem.h"
 
 #include "config.h"
 #include "types.h"

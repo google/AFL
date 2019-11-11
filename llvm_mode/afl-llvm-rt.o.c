@@ -26,6 +26,7 @@
    This code is the rewrite of afl-as.h's main_payload.
 */
 
+#include "../android-ashmem.h"
 #include "../config.h"
 #include "../types.h"
 
