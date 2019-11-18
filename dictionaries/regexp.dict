@@ -5,8 +5,6 @@
 # Contains various regular expressions.
 #
 # Created by Yang Guo <yangguo@chromium.org>
-# 
-# Contributed by Dhiraj Mishra <dhiraj@inputzero.io>
 #
 "?"
 "abc"
@@ -31,7 +29,6 @@
 "xyz{1,}?"
 "a\\fb\\nc\\rd\\te\\vf"
 "a\\nb\\bc"
-"/^\d*\./"
 "(?:foo)"
 "(?: foo )"
 "foo|(bar|baz)|quux"
@@ -221,9 +218,6 @@
 "\x0f"
 "[-\xf0\x9f\x92\xa9]+"
 "[\xf0\x9f\x92\xa9-\xf4\x8f\xbf\xbf]"
-"\[DataMember\((.+?)\)\]"
-"/\d{1,2}\/\d{1,2}\/\d{4}/"
-"a*b\+\|[0-9]\|\d{1,9}"
 "(?<=)"
 "(?<=a)"
 "(?<!)"
