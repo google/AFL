@@ -54,7 +54,11 @@ static void find_obj(u8* argv0) {
 
   if (afl_path) {
 
+#ifdef __ANDROID__
+    tmp = alloc_printf("%s/afl-llvm-rt.so", afl_path);
+#else
     tmp = alloc_printf("%s/afl-llvm-rt.o", afl_path);
+#endif
 
     if (!access(tmp, R_OK)) {
       obj_path = afl_path;
@@ -76,7 +80,11 @@ static void find_obj(u8* argv0) {
     dir = ck_strdup(argv0);
     *slash = '/';
 
+#ifdef __ANDROID__
+    tmp = alloc_printf("%s/afl-llvm-rt.so", dir);
+#else
     tmp = alloc_printf("%s/afl-llvm-rt.o", dir);
+#endif
 
     if (!access(tmp, R_OK)) {
       obj_path = dir;
@@ -89,12 +97,20 @@ static void find_obj(u8* argv0) {
 
   }
 
+#ifdef __ANDROID__
+  if (!access(AFL_PATH "/afl-llvm-rt.so", R_OK)) {
+#else
   if (!access(AFL_PATH "/afl-llvm-rt.o", R_OK)) {
+#endif
     obj_path = AFL_PATH;
     return;
   }
 
+#ifdef __ANDROID__
+  FATAL("Unable to find 'afl-llvm-rt.so'. Please set AFL_PATH");
+#else
   FATAL("Unable to find 'afl-llvm-rt.o' or 'afl-llvm-pass.so'. Please set AFL_PATH");
+#endif
  
 }
 
@@ -128,8 +144,10 @@ static void edit_params(u32 argc, char** argv) {
 
 #ifdef USE_TRACE_PC
   cc_params[cc_par_cnt++] = "-fsanitize-coverage=trace-pc-guard";
+#ifndef __ANDROID__
   cc_params[cc_par_cnt++] = "-mllvm";
   cc_params[cc_par_cnt++] = "-sanitizer-coverage-block-threshold=0";
+#endif
 #else
   cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = "-load";
@@ -286,6 +304,7 @@ static void edit_params(u32 argc, char** argv) {
       cc_params[cc_par_cnt++] = "none";
     }
 
+#ifndef __ANDROID__
     switch (bit_mode) {
 
       case 0:
@@ -309,6 +328,7 @@ static void edit_params(u32 argc, char** argv) {
         break;
 
     }
+#endif
 
   }
 
