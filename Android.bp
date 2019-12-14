@@ -123,36 +123,11 @@ cc_binary_host {
   ],
 }
 
-cc_library_shared {
-  name: "libafl-llvm-rt",
-  compile_multilib: "both",
-
-  defaults: [
-    "afl-defaults",
-  ],
-
-  srcs: [
-    "llvm_mode/afl-llvm-rt.o.c",
-  ],
-}
-
-cc_library_shared {
-  name: "libafl-llvm-rt.vendor",
-  compile_multilib: "both",
-  proprietary: true,
-
-  defaults: [
-    "afl-defaults",
-  ],
-
-  srcs: [
-    "llvm_mode/afl-llvm-rt.o.c",
-  ],
-}
-
-cc_library_host_shared {
+cc_library_static {
   name: "afl-llvm-rt",
   compile_multilib: "both",
+  vendor_available: true,
+  host_supported: true,
 
   defaults: [
     "afl-defaults",
