@@ -128,6 +128,7 @@ cc_library_static {
   compile_multilib: "both",
   vendor_available: true,
   host_supported: true,
+  recovery_available: true,
 
   defaults: [
     "afl-defaults",
