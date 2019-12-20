@@ -488,9 +488,19 @@ static void bind_to_free_cpu(void) {
 
   closedir(d);
 
-  for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
+  
+  size_t cpu_start = 0;
+  
+try:
+#ifndef __ANDROID__
+  for (i = cpu_start; i < cpu_core_count; i++) if (!cpu_used[i]) break;
 
   if (i == cpu_core_count) {
+#else
+  for (i = cpu_core_count - cpu_start - 1; i > -1; i--) if (!cpu_used[i]) break;
+
+  if (i == -1) {
+#endif
 
     SAYF("\n" cLRD "[-] " cRST
          "Uh-oh, looks like all %u CPU cores on your system are allocated to\n"
@@ -503,15 +513,20 @@ static void bind_to_free_cpu(void) {
 
   }
 
-  OKF("Found a free CPU core, binding to #%u.", i);
+  OKF("Found a free CPU core, try binding to #%u.", i);
 
   cpu_aff = i;
 
   CPU_ZERO(&c);
   CPU_SET(i, &c);
 
-  if (sched_setaffinity(0, sizeof(c), &c))
-    PFATAL("sched_setaffinity failed");
+  if (sched_setaffinity(0, sizeof(c), &c)) {
+    if (cpu_start == cpu_core_count)
+      PFATAL("sched_setaffinity failed to cpu %d, exit", i);
+    WARNF("sched_setaffinity failed to cpu %d, try next cpu", i);
+    cpu_start++;
+    goto try; 
+  }
 
 }
 
