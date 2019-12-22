@@ -1,0 +1,33 @@
+--- qemu-2.10.0-clean/tcg/tcg-runtime.h
++++ qemu-2.10.0/tcg/tcg-runtime.h
+@@ -24,6 +24,8 @@ DEF_HELPER_FLAGS_1(clrsb_i64, TCG_CALL_NO_RWG_SE, i64, i64)
+ DEF_HELPER_FLAGS_1(ctpop_i32, TCG_CALL_NO_RWG_SE, i32, i32)
+ DEF_HELPER_FLAGS_1(ctpop_i64, TCG_CALL_NO_RWG_SE, i64, i64)
+ 
++DEF_HELPER_FLAGS_1(afl_log, TCG_CALL_NO_RWG, void, i32)
++
+ DEF_HELPER_FLAGS_2(lookup_tb_ptr, TCG_CALL_NO_WG_SE, ptr, env, tl)
+ 
+ DEF_HELPER_FLAGS_1(exit_atomic, TCG_CALL_NO_WG, noreturn, env)
+
+--- qemu-2.10.0-clean/tcg/tcg-runtime.c
++++ qemu-2.10.0/tcg/tcg-runtime.c
+@@ -31,6 +31,18 @@
+ #include "disas/disas.h"
+ #include "exec/log.h"
+ 
++extern char *afl_area_ptr;
++
++void HELPER(afl_log)(uint32_t cur_loc)
++{
++    static __thread uint32_t prev_loc;
++
++    if (afl_area_ptr) {
++        afl_area_ptr[cur_loc ^ prev_loc]++;
++        prev_loc = cur_loc >> 1;
++    }
++}
++
+ /* 32-bit helpers */
+ 
+ int32_t HELPER(div_i32)(int32_t arg1, int32_t arg2)

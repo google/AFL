@@ -45,7 +45,7 @@
    it to translate within its own context, too (this avoids translation
    overhead in the next forked-off copy). */
 
-#define AFL_QEMU_CPU_SNIPPET1 do { \
+#define AFL_QEMU_TSL_SNIPPET do { \
     afl_request_tsl(pc, cs_base, flags); \
   } while (0)
 
@@ -53,12 +53,20 @@
    _start and does the usual forkserver stuff, not very different from
    regular instrumentation injected via afl-as.h. */
 
-#define AFL_QEMU_CPU_SNIPPET2 do { \
+#define AFL_QEMU_FORK_SNIPPET do { \
     if(itb->pc == afl_entry_point) { \
-      afl_setup(); \
       afl_forkserver(cpu); \
     } \
-    afl_maybe_log(itb->pc); \
+  } while (0)
+
+/* This snippet is used to setup afl-related resources and perform
+   option handling that needs to be done before the first TB is
+   translated. */
+
+#define AFL_QEMU_SETUP_SNIPPET do { \
+    if(!afl_area_ptr) { \
+      afl_setup(); \
+    } \
   } while (0)
 
 /* We use one additional file descriptor to relay "needs translation"
@@ -68,7 +76,7 @@
 
 /* This is equivalent to afl-as.h: */
 
-static unsigned char *afl_area_ptr;
+unsigned char *afl_area_ptr;
 
 /* Exported variables populated by the code patched into elfload.c: */
 
@@ -83,7 +91,7 @@ unsigned int afl_forksrv_pid;
 
 /* Instrumentation ratio: */
 
-static unsigned int afl_inst_rms = MAP_SIZE;
+unsigned int afl_inst_rms = MAP_SIZE;
 
 /* Function declarations. */
 
@@ -229,37 +237,6 @@ static void afl_forkserver(CPUState *cpu) {
   }
 
 }
-
-
-/* The equivalent of the tuple logging routine from afl-as.h. */
-
-static inline void afl_maybe_log(abi_ulong cur_loc) {
-
-  static __thread abi_ulong prev_loc;
-
-  /* Optimize for cur_loc > afl_end_code, which is the most likely case on
-     Linux systems. */
-
-  if (cur_loc > afl_end_code || cur_loc < afl_start_code || !afl_area_ptr)
-    return;
-
-  /* Looks like QEMU always maps to fixed locations, so ASAN is not a
-     concern. Phew. But instruction addresses may be aligned. Let's mangle
-     the value to get something quasi-uniform. */
-
-  cur_loc  = (cur_loc >> 4) ^ (cur_loc << 8);
-  cur_loc &= MAP_SIZE - 1;
-
-  /* Implement probabilistic instrumentation by looking at scrambled block
-     address. This keeps the instrumented locations stable across runs. */
-
-  if (cur_loc >= afl_inst_rms) return;
-
-  afl_area_ptr[cur_loc ^ prev_loc]++;
-  prev_loc = cur_loc >> 1;
-
-}
-
 
 /* This code is invoked whenever QEMU decides that it doesn't have a
    translation of a particular block and needs to compute it. When this happens,

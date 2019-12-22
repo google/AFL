@@ -1,0 +1,20 @@
+--- qemu-2.10.0-clean/include/exec/gen-icount.h
++++ qemu-2.10.0/include/exec/gen-icount.h
+@@ -3,6 +3,8 @@
+ 
+ #include "qemu/timer.h"
+ 
++#include "../patches/afl-qemu-inst.h"
++
+ /* Helpers for instruction counting code generation.  */
+ 
+ static int icount_start_insn_idx;
+@@ -10,6 +12,8 @@ static TCGLabel *exitreq_label;
+ 
+ static inline void gen_tb_start(TranslationBlock *tb)
+ {
++    AFL_QEMU_INST_SNIPPET;
++
+     TCGv_i32 count, imm;
+ 
+     exitreq_label = gen_new_label();
