@@ -52,18 +52,22 @@ static void find_obj(u8* argv0) {
   u8 *afl_path = getenv("AFL_PATH");
   u8 *slash, *tmp;
 
-  if (!afl_path)
-    afl_path = "/usr/local/lib/afl";
+  if (afl_path) {
 
-  tmp = alloc_printf("%s/afl-llvm-rt.o", afl_path);
-  if (!access(tmp, R_OK)) {
-    obj_path = afl_path;
+    tmp = alloc_printf("%s/afl-llvm-rt.o", afl_path);
+
+    if (!access(tmp, R_OK)) {
+      obj_path = afl_path;
+      ck_free(tmp);
+      return;
+    }
+
     ck_free(tmp);
-    return;
+
   }
-  ck_free(tmp);
 
   slash = strrchr(argv0, '/');
+
   if (slash) {
 
     u8 *dir;
