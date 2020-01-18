@@ -488,30 +488,63 @@ static void bind_to_free_cpu(void) {
 
   closedir(d);
 
-  for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
 
-  if (i == cpu_core_count) {
+  int bound = 0;
+  int tried_bind = 0;
+  int saved_errno = 0;
 
-    SAYF("\n" cLRD "[-] " cRST
-         "Uh-oh, looks like all %u CPU cores on your system are allocated to\n"
-         "    other instances of afl-fuzz (or similar CPU-locked tasks). Starting\n"
-         "    another fuzzer on this machine is probably a bad plan, but if you are\n"
-         "    absolutely sure, you can set AFL_NO_AFFINITY and try again.\n",
-         cpu_core_count);
+  for (i = 0; i < cpu_core_count; i++) {
 
-    FATAL("No more free CPU cores");
+    if (!cpu_used[i]) {
 
+      OKF("Found a free CPU core, attempting bind to #%u.", i);
+
+      CPU_ZERO(&c);
+      CPU_SET(i, &c);
+
+      if (sched_setaffinity(0, sizeof(c), &c)) {
+
+        saved_errno = errno;
+        tried_bind++;
+        WARNF("Binding attempt failed; looking for another core...");
+
+      } else {
+
+        cpu_aff = i;
+        bound = 1;
+        break;
+
+      }
+    }
   }
 
-  OKF("Found a free CPU core, binding to #%u.", i);
+  if (!bound) {
 
-  cpu_aff = i;
+    if (tried_bind == 0) {
 
-  CPU_ZERO(&c);
-  CPU_SET(i, &c);
+      SAYF("\n" cLRD "[-] " cRST
+           "Uh-oh, looks like all %u CPU cores on your system are allocated to\n"
+           "    other instances of afl-fuzz (or similar CPU-locked tasks). Starting\n"
+           "    another fuzzer on this machine is probably a bad plan, but if you are\n"
+           "    absolutely sure, you can set AFL_NO_AFFINITY and try again.\n\n",
+           cpu_core_count);
+      FATAL("No more free CPU cores");
 
-  if (sched_setaffinity(0, sizeof(c), &c))
-    PFATAL("sched_setaffinity failed");
+    } else {
+
+      SAYF("\n" cLRD "[-] " cRST
+           "Uh-oh, afl-fuzz found %u apparently free CPU cores, but the system\n"
+           "    wouldn't let us bind to any of them. This can happen if we do not\n"
+           "    have CAP_SYS_NICE, or if we are running in a container that is\n"
+           "    restricted to a certain set of CPUs that already have processes bound\n"
+           "    to them. For a quick workaround, set AFL_NO_AFFINITY and try again.\n",
+           tried_bind);
+
+      errno = saved_errno;
+      PFATAL("sched_setaffinity failed");
+
+    }
+  }
 
 }
 
