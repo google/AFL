@@ -131,7 +131,7 @@ $ ./build_qemu_support.sh
 For additional instructions and caveats, see qemu_mode/README.qemu.
 
 The mode is approximately 2-5x slower than compile-time instrumentation, is
-less conductive to parallelization, and may have some other quirks.
+less conducive to parallelization, and may have some other quirks.
 
 ## 5) Choosing initial test cases
 
