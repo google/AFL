@@ -402,6 +402,74 @@ static void shuffle_ptrs(void** ptrs, u32 cnt) {
 
 
 #ifdef HAVE_AFFINITY
+static void set_affinity_to_next_available_cpu(u8 *cpu_used) {
+  cpu_set_t c;
+
+  u32 i;
+  size_t cpu_start = 0;
+  
+#ifndef __ANDROID__
+  for (i = cpu_start; i < cpu_core_count; i++) {
+    if (cpu_used[i]) continue;
+
+    if (i == cpu_core_count) {
+  
+      SAYF("\n" cLRD "[-] " cRST
+           "Uh-oh, looks like all %u CPU cores on your system are allocated to\n"
+           "    other instances of afl-fuzz (or similar CPU-locked tasks). Starting\n"
+           "    another fuzzer on this machine is probably a bad plan, but if you are\n"
+           "    absolutely sure, you can set AFL_NO_AFFINITY and try again.\n",
+           cpu_core_count);
+  
+      FATAL("No more free CPU cores");
+  
+    } else {
+      OKF("Found a free CPU core, try binding to #%u.", i);
+    
+      cpu_aff = i;
+    
+      CPU_ZERO(&c);
+      CPU_SET(i, &c);
+    
+      if (sched_setaffinity(0, sizeof(c), &c)) {
+        WARNF("sched_setaffinity failed to cpu %d, try next cpu", i);
+        continue;
+      }
+      break;
+    }
+  }
+#else
+  for (i = cpu_core_count - cpu_start - 1; i > -1; i--) {
+    if (cpu_used[i]) continue;
+
+    if (i == -1) {
+  
+      SAYF("\n" cLRD "[-] " cRST
+           "Uh-oh, looks like all %u CPU cores on your system are allocated to\n"
+           "    other instances of afl-fuzz (or similar CPU-locked tasks). Starting\n"
+           "    another fuzzer on this machine is probably a bad plan, but if you are\n"
+           "    absolutely sure, you can set AFL_NO_AFFINITY and try again.\n",
+           cpu_core_count);
+  
+      FATAL("No more free CPU cores");
+  
+    } else {
+      OKF("Found a free CPU core, try binding to #%u.", i);
+    
+      cpu_aff = i;
+    
+      CPU_ZERO(&c);
+      CPU_SET(i, &c);
+    
+      if (sched_setaffinity(0, sizeof(c), &c)) {
+        WARNF("sched_setaffinity failed to cpu %d, try next cpu", i);
+        continue;
+      }
+      break;
+    }
+  }
+#endif
+}
 
 /* Build a list of processes bound to specific cores. Returns -1 if nothing
    can be found. Assumes an upper bound of 4k CPUs. */
@@ -410,10 +478,8 @@ static void bind_to_free_cpu(void) {
 
   DIR* d;
   struct dirent* de;
-  cpu_set_t c;
 
   u8 cpu_used[4096] = { 0 };
-  u32 i;
 
   if (cpu_core_count < 2) return;
 
@@ -488,46 +554,7 @@ static void bind_to_free_cpu(void) {
 
   closedir(d);
 
-  
-  size_t cpu_start = 0;
-  
-try:
-#ifndef __ANDROID__
-  for (i = cpu_start; i < cpu_core_count; i++) if (!cpu_used[i]) break;
-
-  if (i == cpu_core_count) {
-#else
-  for (i = cpu_core_count - cpu_start - 1; i > -1; i--) if (!cpu_used[i]) break;
-
-  if (i == -1) {
-#endif
-
-    SAYF("\n" cLRD "[-] " cRST
-         "Uh-oh, looks like all %u CPU cores on your system are allocated to\n"
-         "    other instances of afl-fuzz (or similar CPU-locked tasks). Starting\n"
-         "    another fuzzer on this machine is probably a bad plan, but if you are\n"
-         "    absolutely sure, you can set AFL_NO_AFFINITY and try again.\n",
-         cpu_core_count);
-
-    FATAL("No more free CPU cores");
-
-  }
-
-  OKF("Found a free CPU core, try binding to #%u.", i);
-
-  cpu_aff = i;
-
-  CPU_ZERO(&c);
-  CPU_SET(i, &c);
-
-  if (sched_setaffinity(0, sizeof(c), &c)) {
-    if (cpu_start == cpu_core_count)
-      PFATAL("sched_setaffinity failed to cpu %d, exit", i);
-    WARNF("sched_setaffinity failed to cpu %d, try next cpu", i);
-    cpu_start++;
-    goto try; 
-  }
-
+  set_affinity_to_next_available_cpu(cpu_used);
 }
 
 #endif /* HAVE_AFFINITY */
