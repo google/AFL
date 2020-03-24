@@ -281,40 +281,36 @@ static void edit_params(u32 argc, char** argv) {
 #endif /* ^__APPLE__ */
     "_I(); } while (0)";
 
-  if (maybe_linking) {
-
-    if (x_set) {
-      cc_params[cc_par_cnt++] = "-x";
-      cc_params[cc_par_cnt++] = "none";
-    }
+  if (x_set) {
+    cc_params[cc_par_cnt++] = "-x";
+    cc_params[cc_par_cnt++] = "none";
+  }
 
 #ifndef __ANDROID__
-    switch (bit_mode) {
+  switch (bit_mode) {
 
-      case 0:
-        cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt.o", obj_path);
-        break;
+    case 0:
+      cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt.o", obj_path);
+      break;
 
-      case 32:
-        cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-32.o", obj_path);
+    case 32:
+      cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-32.o", obj_path);
 
-        if (access(cc_params[cc_par_cnt - 1], R_OK))
-          FATAL("-m32 is not supported by your compiler");
+      if (access(cc_params[cc_par_cnt - 1], R_OK))
+        FATAL("-m32 is not supported by your compiler");
 
-        break;
+      break;
 
-      case 64:
-        cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-64.o", obj_path);
+    case 64:
+      cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-64.o", obj_path);
 
-        if (access(cc_params[cc_par_cnt - 1], R_OK))
-          FATAL("-m64 is not supported by your compiler");
+      if (access(cc_params[cc_par_cnt - 1], R_OK))
+        FATAL("-m64 is not supported by your compiler");
 
-        break;
-
-    }
-#endif
+      break;
 
   }
+#endif
 
   cc_params[cc_par_cnt] = NULL;
 
