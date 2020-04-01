@@ -833,6 +833,10 @@ static void usage(u8* argv0) {
        "  -e            - solve for edge coverage only, ignore hit counts\n"
        "  -x            - treat non-zero exit codes as crashes\n\n"
 
+       "Other stuff:\n\n"
+
+       "  -V            - show version number and exit\n\n"
+
        "For additional tips, please consult %s/README.\n\n",
 
        argv0, EXEC_TIMEOUT, MEM_LIMIT, doc_path);
@@ -986,7 +990,7 @@ int main(int argc, char** argv) {
 
   SAYF(cCYA "afl-tmin " cBRI VERSION cRST " by <lcamtuf@google.com>\n");
 
-  while ((opt = getopt(argc,argv,"+i:o:f:m:t:B:xeQ")) > 0)
+  while ((opt = getopt(argc,argv,"+i:o:f:m:t:B:xeQV")) > 0)
 
     switch (opt) {
 
@@ -1097,6 +1101,11 @@ int main(int argc, char** argv) {
         mask_bitmap = ck_alloc(MAP_SIZE);
         read_bitmap(optarg);
         break;
+
+      case 'V': /* Show version number */
+
+        /* Version number has been printed already, just quit. */
+        exit(0);
 
       default:
 
