@@ -95,6 +95,7 @@ EXP_ST u8 *in_dir,                    /* Input directory with test cases  */
           *out_dir,                   /* Working & output directory       */
           *sync_dir,                  /* Synchronization directory        */
           *sync_id,                   /* Fuzzer ID                        */
+          *static_seed,               /* Static seed                      */
           *use_banner,                /* Display banner                   */
           *in_bitmap,                 /* Input bitmap                     */
           *doc_path,                  /* Path to documentation dir        */
@@ -110,6 +111,7 @@ static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
+           use_static_seed,           /* Use static seed for random()?    */
            use_splicing,              /* Recombine input files?           */
            dumb_mode,                 /* Run in non-instrumented mode?    */
            score_changed,             /* Scoring for favorites changed?   */
@@ -362,11 +364,12 @@ static u64 get_cur_time_us(void) {
 
 
 /* Generate a random number (from 0 to limit - 1). This may
-   have slight bias. */
+   have slight bias. If no static seed is provided, the rng
+   will be reseeded periodically. */
 
 static inline u32 UR(u32 limit) {
 
-  if (unlikely(!rand_cnt--)) {
+  if (unlikely(!rand_cnt--) && !use_static_seed) {
 
     u32 seed[2];
 
@@ -1406,6 +1409,23 @@ static void setup_post(void) {
   post_handler("hello", &tlen);
 
   OKF("Postprocessor installed successfully.");
+
+}
+
+
+/* Setup static seed to get deterministic randomness. */
+
+static void setup_rng(void) {
+
+  if (use_static_seed) {
+
+    /* The `static_seed` global is a u8 pointer with a length of `1 << 8`. */
+    u32 seed = hash32(static_seed, (1 << 8), HASH_CONST);
+    srandom(seed);
+
+    OKF("Using '%s' [hash:%u] as a static seed.", static_seed, seed);
+
+  }
 
 }
 
@@ -7098,6 +7118,7 @@ static void usage(u8* argv0) {
        "Fuzzing behavior settings:\n\n"
 
        "  -d            - quick & dirty mode (skips deterministic steps)\n"
+       "  -D seed       - static seed for repeatable fuzzing (deterministic randomness)\n"
        "  -n            - fuzz without instrumentation (dumb mode)\n"
        "  -x dir        - optional fuzzer dictionary (see README)\n\n"
 
@@ -7762,7 +7783,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dD:nCB:S:M:x:Q")) > 0)
 
     switch (opt) {
 
@@ -7883,6 +7904,12 @@ int main(int argc, char** argv) {
         use_splicing = 1;
         break;
 
+      case 'D': /* static seed for deterministic randomness */
+
+        use_static_seed = 1;
+        static_seed = optarg;
+        break;
+
       case 'B': /* load bitmap */
 
         /* This is a secret undocumented option! It is useful if you find
@@ -7994,6 +8021,7 @@ int main(int argc, char** argv) {
   setup_shm();
   init_count_class16();
 
+  setup_rng();
   setup_dirs_fds();
   read_testcases();
   load_auto();

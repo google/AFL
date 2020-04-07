@@ -16,6 +16,14 @@ Not sure if you should upgrade? The lowest currently recommended version
 is 2.41b. If you're stuck on an earlier release, it's strongly advisable
 to get on with the times.
 
+
+---------------------------
+Version 2.56b+static-seed (2020-04-07):
+---------------------------
+
+  - Add `-D` param to make fuzzing results repeatable by passing a static
+    seed (and thus forcing deterministic randomness)
+
 ---------------------------
 Version 2.56b (2019-09-26):
 ---------------------------
