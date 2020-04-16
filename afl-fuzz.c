@@ -891,12 +891,16 @@ static inline u8 has_new_bits(u8* virgin_map) {
 
 #ifdef WORD_SIZE_64
 
+  u8 word_size = 8;
+
   u64* current = (u64*)trace_bits;
   u64* virgin  = (u64*)virgin_map;
 
   u32  i = (MAP_SIZE >> 3);
 
 #else
+
+  u8 word_size = 4;
 
   u32* current = (u32*)trace_bits;
   u32* virgin  = (u32*)virgin_map;
@@ -915,33 +919,31 @@ static inline u8 has_new_bits(u8* virgin_map) {
 
     if (unlikely(*current) && unlikely(*current & *virgin)) {
 
-      if (likely(ret < 2)) {
+      /* Looks like we have not found any new bytes yet; see if any non-zero
+         bytes in current[] are pristine in virgin[]. */
 
-        u8* cur = (u8*)current;
-        u8* vir = (u8*)virgin;
+      u8* cur = (u8*)current;
+      u8* vir = (u8*)virgin;
 
-        /* Looks like we have not found any new bytes yet; see if any non-zero
-           bytes in current[] are pristine in virgin[]. */
+      /* check new hits bucket */
+      for (u8 j = 0; j < word_size; j++) {
 
-#ifdef WORD_SIZE_64
+        if (!cur[j]) continue;
 
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff) ||
-            (cur[4] && vir[4] == 0xff) || (cur[5] && vir[5] == 0xff) ||
-            (cur[6] && vir[6] == 0xff) || (cur[7] && vir[7] == 0xff)) ret = 2;
-        else ret = 1;
+        u8 bucket = 0;
+        u8 cur_byte = cur[j];
+        while (cur_byte >>= 1) bucket++;
 
-#else
+        if (ret < 2 && vir[j] & (1 << bucket)) {
+          ret = 1;
 
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff)) ret = 2;
-        else ret = 1;
+          if (vir[j] == 0xff)
+            ret = 2;
+        }
 
-#endif /* ^WORD_SIZE_64 */
+        vir[j] &= ~(1 << bucket);
 
       }
-
-      *virgin &= ~*current;
 
     }
 
