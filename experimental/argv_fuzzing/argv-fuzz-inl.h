@@ -31,18 +31,17 @@
    main().
 
    This will cause the program to read NUL-delimited input from stdin and
-   put it in argv[]. Two subsequent NULs terminate the array. Empty
-   params are encoded as a lone 0x02. Lone 0x02 can't be generated, but
-   that shouldn't matter in real life.
+   put it in argv[]. Two subsequent NULs terminate the array.
 
    If you would like to always preserve argv[0], use this instead:
-   AFL_INIT_SET0("prog_name");s
+   AFL_INIT_SET0("prog_name");
 */
 
 #ifndef _HAVE_ARGV_FUZZ_INL
 #define _HAVE_ARGV_FUZZ_INL
 
 #include <unistd.h>
+#include <ctype.h>
 
 #define AFL_INIT_ARGV() do { argv = afl_init_argv(&argc); } while (0)
 
@@ -61,19 +60,23 @@ static char** afl_init_argv(int* argc) {
   static char* ret[MAX_CMDLINE_PAR];
 
   char* ptr = in_buf;
-  int   rc  = 0;
+  int   rc  = 1; /* start after argv[0] */
 
   if (read(0, in_buf, MAX_CMDLINE_LEN - 2) < 0);
 
   while (*ptr) {
 
     ret[rc] = ptr;
-    if (ret[rc][0] == 0x02 && !ret[rc][1]) ret[rc]++;
-    rc++;
 
-    while (*ptr) ptr++;
+    /* insert '\0' at the end of ret[rc] on first space-sym */
+    while (*ptr && !isspace(*ptr)) ptr++;
+    *ptr = '\0';
     ptr++;
 
+    /* skip more space-syms */
+    while (*ptr && isspace(*ptr)) ptr++;
+
+    rc++;
   }
 
   *argc = rc;
