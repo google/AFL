@@ -2675,10 +2675,6 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
 
 abort_calibration:
 
-  if (q->cal_failed) {
-    q->exec_cksum = 0;
-  }
-  
   if (new_bits == 2 && !q->has_new_cov) {
     q->has_new_cov = 1;
     queued_with_cov++;
@@ -5076,6 +5072,12 @@ static u8 fuzz_one(char** argv) {
     u8 res = FAULT_TMOUT;
 
     if (queue_cur->cal_failed < CAL_CHANCES) {
+
+      /* Reset exec_cksum to tell calibrate_case to re-execute the testcase
+         avoiding the usage of an invalid trace_bits.
+         For more info: https://github.com/AFLplusplus/AFLplusplus/pull/425 */
+
+      queue_cur->exec_cksum = 0;
 
       res = calibrate_case(argv, queue_cur, in_buf, queue_cycle - 1, 0);
 
