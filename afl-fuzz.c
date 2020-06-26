@@ -5073,6 +5073,12 @@ static u8 fuzz_one(char** argv) {
 
     if (queue_cur->cal_failed < CAL_CHANCES) {
 
+      /* Reset exec_cksum to tell calibrate_case to re-execute the testcase
+         avoiding the usage of an invalid trace_bits.
+         For more info: https://github.com/AFLplusplus/AFLplusplus/pull/425 */
+
+      queue_cur->exec_cksum = 0;
+
       res = calibrate_case(argv, queue_cur, in_buf, queue_cycle - 1, 0);
 
       if (res == FAULT_ERROR)
