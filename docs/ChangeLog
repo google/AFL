@@ -17,6 +17,16 @@ is 2.41b. If you're stuck on an earlier release, it's strongly advisable
 to get on with the times.
 
 ---------------------------
+Version 2.57b (2020-06-30):
+---------------------------
+
+  - llvm_mode and alf-clang-fast related fixes.
+
+  - Android support.
+
+  - Fixed bugs with stability calculate and testcase calibration.
+
+---------------------------
 Version 2.56b (2019-09-26):
 ---------------------------
 
