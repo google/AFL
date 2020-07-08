@@ -36,6 +36,10 @@ ifneq "$(filter Linux GNU%,$(shell uname))" ""
   LDFLAGS  += -ldl
 endif
 
+ifneq "$(filter FreeBSD GNU%,$(shell uname))" ""
+  LDFLAGS  += -pthread
+endif
+
 ifeq "$(findstring clang, $(shell $(CC) --version 2>/dev/null))" ""
   TEST_CC   = afl-gcc
 else
@@ -86,11 +90,14 @@ afl-gotcpu: afl-gotcpu.c $(COMM_HDR) | test_x86
 
 ifndef AFL_NO_X86
 
-test_build: afl-gcc afl-as afl-showmap
+test_build: afl-gcc afl-as afl-showmap afl-fuzz
 	@echo "[*] Testing the CC wrapper and instrumentation output..."
 	unset AFL_USE_ASAN AFL_USE_MSAN; AFL_QUIET=1 AFL_INST_RATIO=100 AFL_PATH=. ./$(TEST_CC) $(CFLAGS) test-instr.c -o test-instr $(LDFLAGS)
 	./afl-showmap -m none -q -o .test-instr0 ./test-instr < /dev/null
 	echo 1 | ./afl-showmap -m none -q -o .test-instr1 ./test-instr
+	mkdir -p .out
+	./afl-fuzz -i testcases/others/elf -o .out -- /dev/null | grep 'Found a free CPU core'
+	@rm -rf .out
 	@rm -f test-instr
 	@cmp -s .test-instr0 .test-instr1; DR="$$?"; rm -f .test-instr0 .test-instr1; if [ "$$DR" = "0" ]; then echo; echo "Oops, the instrumentation does not seem to be behaving correctly!"; echo; echo "Please ping <lcamtuf@google.com> to troubleshoot the issue."; echo; exit 1; fi
 	@echo "[+] All right, the instrumentation seems to be working!"

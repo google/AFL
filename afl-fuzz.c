@@ -69,14 +69,22 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
+#  ifdef __FreeBSD__
+#    include <sys/user.h>
+#    include <sys/cpuset.h>
+#    include <pthread.h>
+#    include <pthread_np.h>
+#  endif
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
 
 /* For systems that have sched_setaffinity; right now just Linux, but one
    can hope... */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 #  define HAVE_AFFINITY 1
 #endif /* __linux__ */
+
+#define __arraysize(arr) (sizeof(arr)/sizeof(arr[0]))
 
 /* A toggle to export some variables when building as a library. Not very
    useful for the general public. */
@@ -407,13 +415,12 @@ static void shuffle_ptrs(void** ptrs, u32 cnt) {
    can be found. Assumes an upper bound of 4k CPUs. */
 
 static void bind_to_free_cpu(void) {
-
+  u8 cpu_used[4096] = { 0 };
+  u32 i;
+#ifdef __linux__
   DIR* d;
   struct dirent* de;
   cpu_set_t c;
-
-  u8 cpu_used[4096] = { 0 };
-  u32 i;
 
   if (cpu_core_count < 2) return;
 
@@ -487,6 +494,26 @@ static void bind_to_free_cpu(void) {
   }
 
   closedir(d);
+#elif defined(__FreeBSD__)
+  struct kinfo_proc *procs;
+  size_t nprocs;
+  size_t proccount;
+  cpuset_t c;
+  int s_name[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL};
+  if (sysctl(s_name, __arraysize(s_name), NULL, &nprocs, NULL, 0) < 0) return;
+  proccount = nprocs / sizeof(*procs);
+  procs = ck_alloc(nprocs);
+  if (sysctl(s_name, __arraysize(s_name), NULL, &nprocs, NULL, 0) < 0) {
+    ck_free(procs);
+    return;
+  }
+
+  for (i = 0; i < proccount; i++) {
+    if (procs[i].ki_oncpu < sizeof(cpu_used))
+      cpu_used[procs[i].ki_oncpu] = 1;
+  }
+
+#endif
 
   for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
 
@@ -510,8 +537,13 @@ static void bind_to_free_cpu(void) {
   CPU_ZERO(&c);
   CPU_SET(i, &c);
 
+#ifdef __linux__
   if (sched_setaffinity(0, sizeof(c), &c))
     PFATAL("sched_setaffinity failed");
+#elif defined(__FreeBSD__)
+  if (pthread_setaffinity_np(pthread_self(), sizeof(c), &c))
+    PFATAL("pthread_setaffinity failed");
+#endif
 
 }
 
@@ -7411,9 +7443,9 @@ static void get_core_count(void) {
 
 #else
 
-  int s_name[2] = { CTL_HW, HW_NCPU };
+  int s_name[] = { CTL_HW, HW_NCPU };
 
-  if (sysctl(s_name, 2, &cpu_core_count, &s, NULL, 0) < 0) return;
+  if (sysctl(s_name, __arraysize(s_name), &cpu_core_count, &s, NULL, 0) < 0) return;
 
 #endif /* ^__APPLE__ */
 
