@@ -67,6 +67,9 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
 #endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ */
@@ -100,7 +103,8 @@ EXP_ST u8 *in_dir,                    /* Input directory with test cases  */
           *in_bitmap,                 /* Input bitmap                     */
           *doc_path,                  /* Path to documentation dir        */
           *target_path,               /* Path to target binary            */
-          *orig_cmdline;              /* Original command line            */
+          *orig_cmdline,              /* Original command line            */
+          *unix_sock_name;            /* Unix socket name to connect      */
 
 EXP_ST u32 exec_tmout = EXEC_TIMEOUT; /* Configurable exec timeout (ms)   */
 static u32 hang_tmout = EXEC_TIMEOUT; /* Timeout used for hang det (ms)   */
@@ -133,13 +137,15 @@ EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            run_over10m,               /* Run time over 10 minutes?        */
            persistent_mode,           /* Running in persistent mode?      */
            deferred_mode,             /* Deferred forkserver mode?        */
-           fast_cal;                  /* Try to calibrate faster?         */
+           fast_cal,                  /* Try to calibrate faster?         */
+           unix_sock_mode;            /* Unix socket mode                 */
 
 static s32 out_fd,                    /* Persistent fd for out_file       */
            dev_urandom_fd = -1,       /* Persistent fd for /dev/urandom   */
            dev_null_fd = -1,          /* Persistent fd for /dev/null      */
            fsrv_ctl_fd,               /* Fork server control pipe (write) */
-           fsrv_st_fd;                /* Fork server status pipe (read)   */
+           fsrv_st_fd,                /* Fork server status pipe (read)   */
+           unix_sock_fd = -1;         /* Unix socket fd to use            */
 
 static s32 forksrv_pid,               /* PID of the fork server           */
            child_pid = -1,            /* PID of the fuzzed program        */
@@ -1976,6 +1982,31 @@ static void destroy_extras(void) {
 
 }
 
+/* Connect to the unix socket defined. Return file descriptor in case
+   of success, otherwise return -1. */
+
+static int unix_sock_connect(const char *path) {
+  int fd;
+  struct sockaddr_un addr;
+
+  fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (fd < 0) {
+    SAYF("Can't create AF_UNIX socket.\n");
+    return -1;
+  }
+
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_UNIX;
+  strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+  if (connect(fd, (struct sockaddr *)&addr,
+        sizeof(addr)) == -1) {
+    close(fd);
+    SAYF("Can't connect to socket = %s.\n", path);
+    return -1;
+  }
+
+  return fd;
+}
 
 /* Spin up fork server (instrumented mode only). The idea is explained here:
 
@@ -2119,6 +2150,13 @@ EXP_ST void init_forkserver(char** argv) {
 
   it.it_value.tv_sec = ((exec_tmout * FORK_WAIT_MULT) / 1000);
   it.it_value.tv_usec = ((exec_tmout * FORK_WAIT_MULT) % 1000) * 1000;
+
+  if (unix_sock_mode && (unix_sock_fd == -1)) {
+    unix_sock_fd = unix_sock_connect(unix_sock_name);
+    if (unix_sock_fd == -1) {
+      FATAL("Can't connect to the unix socket required: %s", unix_sock_name);
+    }
+  }
 
   setitimer(ITIMER_REAL, &it, NULL);
 
@@ -2266,11 +2304,30 @@ EXP_ST void init_forkserver(char** argv) {
 
 }
 
+/* Send the testcase input through the unix socket initialized. */
+
+static void unix_sock_send_message(void *mem, u32 len) {
+  struct msghdr msgh;
+  struct iovec iov;
+
+  iov.iov_base = mem;
+  iov.iov_len = len;
+  msgh.msg_name = NULL;
+  msgh.msg_namelen = 0;
+  msgh.msg_iov = &iov;
+  msgh.msg_iovlen = 1;
+  msgh.msg_control = NULL;
+  msgh.msg_controllen = 0;
+  if (sendmsg(unix_sock_fd, &msgh, 0) != len) {
+    FATAL("Can't send message: %d, %s.\n", errno, strerror(errno));
+  }
+}
 
 /* Execute target application, monitoring for timeouts. Return status
-   information. The called program will update trace_bits[]. */
+   information. The called program will update trace_bits[].
+   If unix socket mode is set, then send testcase to the unix socket. */
 
-static u8 run_target(char** argv, u32 timeout) {
+static u8 run_target(char** argv, u32 timeout, char *membuf, int memlen) {
 
   static struct itimerval it;
   static u32 prev_timed_out = 0;
@@ -2402,6 +2459,12 @@ static u8 run_target(char** argv, u32 timeout) {
 
   setitimer(ITIMER_REAL, &it, NULL);
 
+  /* In case of using the unix socket to send inputs, we are sending input
+     right after "forking" the process to fuzz. */
+  if (unix_sock_mode) {
+    unix_sock_send_message(membuf, memlen);
+  }
+
   /* The SIGALRM handler simply kills the child_pid and sets child_timed_out. */
 
   if (dumb_mode == 1 || no_forkserver) {
@@ -2490,6 +2553,11 @@ static u8 run_target(char** argv, u32 timeout) {
 
 static void write_to_testcase(void* mem, u32 len) {
 
+  if (unix_sock_mode) {
+    /* Nothing to do, data is sent inside run_target() routine. */
+    return;
+  }
+
   s32 fd = out_fd;
 
   if (out_file) {
@@ -2517,6 +2585,11 @@ static void write_to_testcase(void* mem, u32 len) {
 /* The same, but with an adjustable gap. Used for trimming. */
 
 static void write_with_gap(void* mem, u32 len, u32 skip_at, u32 skip_len) {
+
+  if (unix_sock_mode) {
+    /* Nothing to do, data is sent inside run_target() routine. */
+    return;
+  }
 
   s32 fd = out_fd;
   u32 tail_len = len - skip_at - skip_len;
@@ -2602,7 +2675,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
 
     write_to_testcase(use_mem, q->len);
 
-    fault = run_target(argv, use_tmout);
+    fault = run_target(argv, use_tmout, use_mem, q->len);
 
     /* stop_soon is set by the handler for Ctrl+C. When it's pressed,
        we want to bail out quickly. */
@@ -3232,7 +3305,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
         u8 new_fault;
         write_to_testcase(mem, len);
-        new_fault = run_target(argv, hang_tmout);
+        new_fault = run_target(argv, hang_tmout, mem, len);
 
         /* A corner case that one user reported bumping into: increasing the
            timeout actually uncovers a crash. Make sure we don't discard it if
@@ -3459,7 +3532,7 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
              "exec_timeout      : %u\n" /* Must match find_timeout() */
              "afl_banner        : %s\n"
              "afl_version       : " VERSION "\n"
-             "target_mode       : %s%s%s%s%s%s%s\n"
+             "target_mode       : %s%s%s%s%s%s%s%s\n"
              "command_line      : %s\n"
              "slowest_exec_ms   : %llu\n",
              start_time / 1000, get_cur_time() / 1000, getpid(),
@@ -3474,7 +3547,7 @@ static void write_stats_file(double bitmap_cvg, double stability, double eps) {
              no_forkserver ? "no_forksrv " : "", crash_mode ? "crash " : "",
              persistent_mode ? "persistent " : "", deferred_mode ? "deferred " : "",
              (qemu_mode || dumb_mode || no_forkserver || crash_mode ||
-              persistent_mode || deferred_mode) ? "" : "default",
+              persistent_mode || deferred_mode || unix_sock_mode) ? "" : "default",
              orig_cmdline, slowest_exec_ms);
              /* ignore errors */
 
@@ -4516,6 +4589,9 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
   u32 remove_len;
   u32 len_p2;
 
+  void *sock_buf = NULL;
+  u32 tail_len = 0;
+
   /* Although the trimmer will be less useful when variable behavior is
      detected, it will still work to some extent, so we don't check for
      this. */
@@ -4550,7 +4626,22 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
       write_with_gap(in_buf, q->len, remove_pos, trim_avail);
 
-      fault = run_target(argv, exec_tmout);
+      /* Prepare buffer to send in case of the unix socket mode. */
+      if (unix_sock_mode) {
+        sock_buf = malloc(q->len - trim_avail);
+        if (!sock_buf) {
+          FATAL("Can't allocate buffer of length = %d\n",
+              q->len -trim_avail);
+        }
+        tail_len = q->len - remove_pos - trim_avail;
+
+        memcpy(sock_buf, in_buf, remove_pos);
+        memcpy(sock_buf + remove_pos, in_buf + remove_pos + trim_avail, tail_len);
+      }
+      fault = run_target(argv, exec_tmout, sock_buf, q->len - trim_avail);
+      if (unix_sock_mode) {
+        free(sock_buf);
+      }
       trim_execs++;
 
       if (stop_soon || fault == FAULT_ERROR) goto abort_trimming;
@@ -4643,7 +4734,7 @@ EXP_ST u8 common_fuzz_stuff(char** argv, u8* out_buf, u32 len) {
 
   write_to_testcase(out_buf, len);
 
-  fault = run_target(argv, exec_tmout);
+  fault = run_target(argv, exec_tmout, out_buf, len);
 
   if (stop_soon) return 1;
 
@@ -6778,7 +6869,7 @@ static void sync_fuzzers(char** argv) {
 
         write_to_testcase(mem, st.st_size);
 
-        fault = run_target(argv, exec_tmout);
+        fault = run_target(argv, exec_tmout, mem, st.st_size);
 
         if (stop_soon) return;
 
@@ -7107,7 +7198,8 @@ static void usage(u8* argv0) {
        "  -f file       - location read by the fuzzed program (stdin)\n"
        "  -t msec       - timeout for each run (auto-scaled, 50-%u ms)\n"
        "  -m megs       - memory limit for child process (%u MB)\n"
-       "  -Q            - use binary-only instrumentation (QEMU mode)\n\n"     
+       "  -Q            - use binary-only instrumentation (QEMU mode)\n"
+       "  -u sock       - use unix socket to send input to application\n\n"
  
        "Fuzzing behavior settings:\n\n"
 
@@ -7776,7 +7868,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Qu:")) > 0)
 
     switch (opt) {
 
@@ -7941,6 +8033,14 @@ int main(int argc, char** argv) {
         qemu_mode = 1;
 
         if (!mem_limit_given) mem_limit = MEM_LIMIT_QEMU;
+
+        break;
+
+      case 'u': /* unix socket name */
+
+        if (unix_sock_mode) FATAL("Multiple -u options not supported");
+        unix_sock_mode = 1;
+        unix_sock_name = optarg;
 
         break;
 

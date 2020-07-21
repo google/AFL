@@ -561,3 +561,65 @@ It uses the following classification scheme:
   - "Magic value section" - a generic token where changes cause the type
     of binary behavior outlined earlier, but that doesn't meet any of the
     other criteria. May be an atomically compared keyword or so.
+
+14) Unix-sock mode
+------------------
+
+There are different cases when using stdin or shared file as input is not
+enough. For instance:
+
+  - TCP/IP application: in this case we need to modify it to be available
+    for fuzzing
+
+  - emulated devices, for example virtio: need to enhance virtio device
+    implementation to support stdin as input, or update AFL with the
+    virtio queue communication channel
+
+  - other low-level code, like drivers, devices, OS itself
+
+The idea is to use the proxy application which knows how to communicate
+with the test application and provides the unix socket interface for
+AFL. So the whole fuzzing scheme will be as follows:
+
+  /---------\              /---------\
+  |         |              |         |
+  |   AFL   | <--STATUS--- |   APP   |
+  |         |              |         |
+  \---------/              |         |
+                           |         |
+      ||                   |         |
+      || UNIX SOCKET       |         |
+      \/                   |         |
+                           |         |
+  /---------\              |---------|
+  |         |              |         |
+  |  PROXY  | ---INPUT---> | TCP/IP  |
+  |         |              |         |
+  \---------/              \---------/
+
+Does it solves all the issues? No. Anyway need to implement the "proxy"
+application to receive the input through the unix socket and redirect it
+to the test application. But the benefits here are:
+
+  - Do not modify AFL itself;
+
+  - Less changes to the test application, so it can be more production
+    like case.
+
+The whole use case is written below:
+
+  - Write a proxy application which will listen on unix socket and is
+    able to redirect input to the test application using specific
+    transport channel (TCP/IP, virtio, shared memory, etc.).
+
+  - Run AFL using the unix socket mode as an option:
+      afl-fuzz ... -u <sock_name> ...
+    AFL should still fork and run the test application.
+
+In this case AFL still monitors the test application status and the
+code paths used. The input is sent right after the fork call, so the
+proxy application will be able to redirect data to the test application.
+
+The idea was presented at the KVM Forum 2019 event to fuzz virtio
+block device implementation for both QEMU and SPDK:
+  Virtio Device Fuzzing: https://www.youtube.com/watch?v=dk6SUD8ovXw
