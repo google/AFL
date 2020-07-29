@@ -107,6 +107,8 @@ static u32 hang_tmout = EXEC_TIMEOUT; /* Timeout used for hang det (ms)   */
 
 EXP_ST u64 mem_limit  = MEM_LIMIT;    /* Memory cap for child (MB)        */
 
+EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
+
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
@@ -117,6 +119,7 @@ EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            kill_signal,               /* Signal that killed the child     */
            resuming_fuzz,             /* Resuming an older fuzzing job?   */
            timeout_given,             /* Specific timeout given?          */
+           cpu_to_bind_given,         /* Specified cpu_to_bin given?      */
            not_on_tty,                /* stdout is not a tty              */
            term_too_small,            /* terminal dimensions too small    */
            uses_asan,                 /* Target uses ASAN?                */
@@ -487,8 +490,20 @@ static void bind_to_free_cpu(void) {
   }
 
   closedir(d);
+  if (cpu_to_bind_given) {
 
-  for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
+    if (0 <= cpu_to_bind && cpu_to_bind < cpu_core_count) {
+
+      if (!cpu_used[cpu_to_bind]) i = cpu_to_bind;
+      else FATAL("The CPU core #%u to bind is not free!", cpu_to_bind);
+
+    } else FATAL("The CPU core id to bind should be between 0 and %u", cpu_core_count - 1);
+    
+  } else {
+
+    for (i = 0; i < cpu_core_count; i++) if (!cpu_used[i]) break;
+    
+  }
 
   if (i == cpu_core_count) {
 
@@ -7120,6 +7135,7 @@ static void usage(u8* argv0) {
        "  -T text       - text banner to show on the screen\n"
        "  -M / -S id    - distributed mode (see parallel_fuzzing.txt)\n"
        "  -C            - crash exploration mode (the peruvian rabbit thing)\n\n"
+       "  -b cpu_id     - bind the fuzzing process to the specified CPU core\n\n"
 
        "For additional tips, please consult %s/README.\n\n",
 
@@ -7776,7 +7792,7 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:b:t:T:dnCB:S:M:x:Q")) > 0)
 
     switch (opt) {
 
@@ -7889,6 +7905,18 @@ int main(int argc, char** argv) {
         }
 
         break;
+      
+      case 'b': { /* bind CPU core */
+
+          if (cpu_to_bind_given) FATAL("Multiple -b options not supported");
+          cpu_to_bind_given = 1;
+
+          if (sscanf(optarg, "%u", &cpu_to_bind) < 1 ||
+              optarg[0] == '-') FATAL("Bad syntax used for -b");
+
+          break;
+
+      }
 
       case 'd': /* skip deterministic */
 
