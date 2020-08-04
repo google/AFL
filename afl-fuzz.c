@@ -119,7 +119,7 @@ EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            kill_signal,               /* Signal that killed the child     */
            resuming_fuzz,             /* Resuming an older fuzzing job?   */
            timeout_given,             /* Specific timeout given?          */
-           cpu_to_bind_given,         /* Specified cpu_to_bin given?      */
+           cpu_to_bind_given,         /* Specified cpu_to_bind given?     */
            not_on_tty,                /* stdout is not a tty              */
            term_too_small,            /* terminal dimensions too small    */
            uses_asan,                 /* Target uses ASAN?                */
@@ -492,12 +492,13 @@ static void bind_to_free_cpu(void) {
   closedir(d);
   if (cpu_to_bind_given) {
 
-    if (0 <= cpu_to_bind && cpu_to_bind < cpu_core_count) {
+    if (cpu_to_bind >= cpu_core_count)
+      FATAL("The CPU core id to bind should be between 0 and %u", cpu_core_count - 1);
+    
+    if (cpu_used[cpu_to_bind])
+      FATAL("The CPU core #%u to bind is not free!", cpu_to_bind);
 
-      if (!cpu_used[cpu_to_bind]) i = cpu_to_bind;
-      else FATAL("The CPU core #%u to bind is not free!", cpu_to_bind);
-
-    } else FATAL("The CPU core id to bind should be between 0 and %u", cpu_core_count - 1);
+    i = cpu_to_bind;
     
   } else {
 
