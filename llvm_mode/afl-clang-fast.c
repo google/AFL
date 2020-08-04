@@ -103,7 +103,8 @@ static void find_obj(u8* argv0) {
 
 static void edit_params(u32 argc, char** argv) {
 
-  u8 fortify_set = 0, asan_set = 0, x_set = 0, bit_mode = 0;
+  u8 fortify_set = 0, asan_set = 0, x_set = 0, bit_mode = 0,
+     shared_linking = 0, preprocessor_only = 0;
   u8 *name;
 
   cc_params = ck_alloc((argc + 128) * sizeof(u8*));
@@ -157,6 +158,9 @@ static void edit_params(u32 argc, char** argv) {
 
     if (!strcmp(cur, "-Wl,-z,defs") ||
         !strcmp(cur, "-Wl,--no-undefined")) continue;
+
+    if (!strcmp(cur, "-E")) preprocessor_only = 1;
+    if (!strcmp(cur, "-shared")) shared_linking = 1;
 
     cc_params[cc_par_cnt++] = cur;
 
@@ -275,6 +279,23 @@ static void edit_params(u32 argc, char** argv) {
   if (x_set) {
     cc_params[cc_par_cnt++] = "-x";
     cc_params[cc_par_cnt++] = "none";
+  }
+
+  if (preprocessor_only) {
+    /* In the preprocessor_only case (-E), we are not actually compiling at
+       all but requesting the compiler to output preprocessed sources only.
+       We must not add the runtime in this case because the compiler will
+       simply output its binary content back on stdout, breaking any build
+       systems that rely on a separate source preprocessing step. */
+    cc_params[cc_par_cnt] = NULL;
+    return;
+  }
+
+  if (!shared_linking) {
+    /* In order for AFL to work with shared libraries that are dynamically
+       loaded through dlopen(), we need to ensure that the main binary exports
+       the symbols used in the AFL runtime. */
+    cc_params[cc_par_cnt++] = alloc_printf("-Wl,--dynamic-list=%s/symfile.txt", obj_path);
   }
 
 #ifndef __ANDROID__
