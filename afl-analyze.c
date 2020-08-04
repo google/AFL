@@ -822,6 +822,10 @@ static void usage(u8* argv0) {
 
        "  -e            - look for edge coverage only, ignore hit counts\n\n"
 
+       "Other stuff:\n\n"
+
+       "  -V            - show version number and exit\n\n"
+
        "For additional tips, please consult %s/README.\n\n",
 
        argv0, EXEC_TIMEOUT, MEM_LIMIT, doc_path);
@@ -959,7 +963,7 @@ int main(int argc, char** argv) {
 
   SAYF(cCYA "afl-analyze " cBRI VERSION cRST " by <lcamtuf@google.com>\n");
 
-  while ((opt = getopt(argc,argv,"+i:f:m:t:eQ")) > 0)
+  while ((opt = getopt(argc,argv,"+i:f:m:t:eQV")) > 0)
 
     switch (opt) {
 
@@ -1038,6 +1042,11 @@ int main(int argc, char** argv) {
 
         qemu_mode = 1;
         break;
+
+      case 'V': /* Show version number */
+
+        /* Version number has been printed already, just quit. */
+        exit(0);
 
       default:
 
