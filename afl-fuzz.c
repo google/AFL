@@ -6008,7 +6008,7 @@ skip_interest:
   stage_name  = "user extras (insert)";
   stage_short = "ext_UI";
   stage_cur   = 0;
-  stage_max   = extras_cnt * len;
+  stage_max   = extras_cnt * (len + 1);
 
   orig_hit_cnt = new_hit_cnt;
 
