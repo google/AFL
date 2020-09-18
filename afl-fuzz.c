@@ -824,7 +824,7 @@ static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
 
   cycles_wo_finds = 0;
 
-  if (queued_paths > 1 && queued_paths % 100 == 1) {
+  if (queued_paths % 100 == 1 && queued_paths > 1) {
 
     q_prev100->next_100 = q;
     q_prev100 = q;
