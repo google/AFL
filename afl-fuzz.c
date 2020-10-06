@@ -824,6 +824,13 @@ static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
 
   cycles_wo_finds = 0;
 
+  /* we set here next_100 pointer on every new entry
+   * which index is multiple of 100 and positive
+   * to get faster entry with corresponding big index (>=100)
+   * in splicing stage
+   *
+   * note that while index is 100 (e.g.), queued_paths is 101
+   */
   if (queued_paths % 100 == 1 && queued_paths > 1) {
 
     q_prev100->next_100 = q;
