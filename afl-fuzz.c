@@ -824,7 +824,8 @@ static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
 
   cycles_wo_finds = 0;
 
-  if (!(queued_paths % 100)) {
+  /* Set next_100 pointer for every 100th element (index 0, 100, etc) to allow faster iteration. */
+  if ((queued_paths - 1) % 100 == 0 && queued_paths > 1) {
 
     q_prev100->next_100 = q;
     q_prev100 = q;
