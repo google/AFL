@@ -896,84 +896,6 @@ EXP_ST void read_bitmap(u8* fname) {
 }
 
 
-/* Check if the current execution path brings anything new to the table.
-   Update virgin bits to reflect the finds. Returns 1 if the only change is
-   the hit-count for a particular tuple; 2 if there are new tuples seen. 
-   Updates the map, so subsequent calls will always return 0.
-
-   This function is called after every exec() on a fairly large buffer, so
-   it needs to be fast. We do this in 32-bit and 64-bit flavors. */
-
-static inline u8 has_new_bits(u8* virgin_map) {
-
-#ifdef WORD_SIZE_64
-
-  u64* current = (u64*)trace_bits;
-  u64* virgin  = (u64*)virgin_map;
-
-  u32  i = (MAP_SIZE >> 3);
-
-#else
-
-  u32* current = (u32*)trace_bits;
-  u32* virgin  = (u32*)virgin_map;
-
-  u32  i = (MAP_SIZE >> 2);
-
-#endif /* ^WORD_SIZE_64 */
-
-  u8   ret = 0;
-
-  while (i--) {
-
-    /* Optimize for (*current & *virgin) == 0 - i.e., no bits in current bitmap
-       that have not been already cleared from the virgin map - since this will
-       almost always be the case. */
-
-    if (unlikely(*current) && unlikely(*current & *virgin)) {
-
-      if (likely(ret < 2)) {
-
-        u8* cur = (u8*)current;
-        u8* vir = (u8*)virgin;
-
-        /* Looks like we have not found any new bytes yet; see if any non-zero
-           bytes in current[] are pristine in virgin[]. */
-
-#ifdef WORD_SIZE_64
-
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff) ||
-            (cur[4] && vir[4] == 0xff) || (cur[5] && vir[5] == 0xff) ||
-            (cur[6] && vir[6] == 0xff) || (cur[7] && vir[7] == 0xff)) ret = 2;
-        else ret = 1;
-
-#else
-
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff)) ret = 2;
-        else ret = 1;
-
-#endif /* ^WORD_SIZE_64 */
-
-      }
-
-      *virgin &= ~*current;
-
-    }
-
-    current++;
-    virgin++;
-
-  }
-
-  if (ret && virgin_map == virgin_bits) bitmap_changed = 1;
-
-  return ret;
-
-}
-
-
 /* Count the number of bits set in the provided bitmap. Used for the status
    screen several times every second, does not have to be fast. */
 
@@ -1076,65 +998,6 @@ static const u8 simplify_lookup[256] = {
 
 };
 
-#ifdef WORD_SIZE_64
-
-static void simplify_trace(u64* mem) {
-
-  u32 i = MAP_SIZE >> 3;
-
-  while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
-      u8* mem8 = (u8*)mem;
-
-      mem8[0] = simplify_lookup[mem8[0]];
-      mem8[1] = simplify_lookup[mem8[1]];
-      mem8[2] = simplify_lookup[mem8[2]];
-      mem8[3] = simplify_lookup[mem8[3]];
-      mem8[4] = simplify_lookup[mem8[4]];
-      mem8[5] = simplify_lookup[mem8[5]];
-      mem8[6] = simplify_lookup[mem8[6]];
-      mem8[7] = simplify_lookup[mem8[7]];
-
-    } else *mem = 0x0101010101010101ULL;
-
-    mem++;
-
-  }
-
-}
-
-#else
-
-static void simplify_trace(u32* mem) {
-
-  u32 i = MAP_SIZE >> 2;
-
-  while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
-      u8* mem8 = (u8*)mem;
-
-      mem8[0] = simplify_lookup[mem8[0]];
-      mem8[1] = simplify_lookup[mem8[1]];
-      mem8[2] = simplify_lookup[mem8[2]];
-      mem8[3] = simplify_lookup[mem8[3]];
-
-    } else *mem = 0x01010101;
-
-    mem++;
-  }
-
-}
-
-#endif /* ^WORD_SIZE_64 */
-
 
 /* Destructively classify execution counts in a trace. This is used as a
    preprocessing step for any newly acquired traces. Called on every exec,
@@ -1169,60 +1032,57 @@ EXP_ST void init_count_class16(void) {
 
 }
 
+/* Import coverage processing routines. */
+
+#ifdef WORD_SIZE_64
+#  include "coverage-64.h"
+#else
+#  include "coverage-32.h"
+#endif
+
+
+/* Check if the current execution path brings anything new to the table.
+   Update virgin bits to reflect the finds. Returns 1 if the only change is
+   the hit-count for a particular tuple; 2 if there are new tuples seen. 
+   Updates the map, so subsequent calls will always return 0.
+
+   This function is called after every exec() on a fairly large buffer, so
+   it needs to be fast. We do this in 32-bit and 64-bit flavors. */
+
+static inline u8 has_new_bits(u8* virgin_map) {
 
 #ifdef WORD_SIZE_64
 
-static inline void classify_counts(u64* mem) {
+  u64* current = (u64*)trace_bits;
+  u64* virgin  = (u64*)virgin_map;
 
-  u32 i = MAP_SIZE >> 3;
-
-  while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
-      u16* mem16 = (u16*)mem;
-
-      mem16[0] = count_class_lookup16[mem16[0]];
-      mem16[1] = count_class_lookup16[mem16[1]];
-      mem16[2] = count_class_lookup16[mem16[2]];
-      mem16[3] = count_class_lookup16[mem16[3]];
-
-    }
-
-    mem++;
-
-  }
-
-}
+  u32  i = (MAP_SIZE >> 3);
 
 #else
 
-static inline void classify_counts(u32* mem) {
+  u32* current = (u32*)trace_bits;
+  u32* virgin  = (u32*)virgin_map;
 
-  u32 i = MAP_SIZE >> 2;
+  u32  i = (MAP_SIZE >> 2);
+
+#endif /* ^WORD_SIZE_64 */
+
+  u8   ret = 0;
 
   while (i--) {
 
-    /* Optimize for sparse bitmaps. */
+    if (unlikely(*current)) discover_word(&ret, current, virgin);
 
-    if (unlikely(*mem)) {
-
-      u16* mem16 = (u16*)mem;
-
-      mem16[0] = count_class_lookup16[mem16[0]];
-      mem16[1] = count_class_lookup16[mem16[1]];
-
-    }
-
-    mem++;
+    current++;
+    virgin++;
 
   }
 
-}
+  if (ret && virgin_map == virgin_bits) bitmap_changed = 1;
 
-#endif /* ^WORD_SIZE_64 */
+  return ret;
+
+}
 
 
 /* Get rid of shared memory (atexit handler). */
@@ -2458,12 +2318,7 @@ static u8 run_target(char** argv, u32 timeout) {
   MEM_BARRIER();
 
   tb4 = *(u32*)trace_bits;
-
-#ifdef WORD_SIZE_64
-  classify_counts((u64*)trace_bits);
-#else
-  classify_counts((u32*)trace_bits);
-#endif /* ^WORD_SIZE_64 */
+  classify_counts(trace_bits);
 
   prev_timed_out = child_timed_out;
 
@@ -3229,12 +3084,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
       if (!dumb_mode) {
 
-#ifdef WORD_SIZE_64
-        simplify_trace((u64*)trace_bits);
-#else
-        simplify_trace((u32*)trace_bits);
-#endif /* ^WORD_SIZE_64 */
-
+        simplify_trace(trace_bits);
         if (!has_new_bits(virgin_tmout)) return keeping;
 
       }
@@ -3293,12 +3143,7 @@ keep_as_crash:
 
       if (!dumb_mode) {
 
-#ifdef WORD_SIZE_64
-        simplify_trace((u64*)trace_bits);
-#else
-        simplify_trace((u32*)trace_bits);
-#endif /* ^WORD_SIZE_64 */
-
+        simplify_trace(trace_bits);
         if (!has_new_bits(virgin_crash)) return keeping;
 
       }
