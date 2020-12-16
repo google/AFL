@@ -1085,6 +1085,22 @@ static inline u8 has_new_bits(u8* virgin_map) {
 }
 
 
+/* A combination of classify_counts and has_new_bits. If 0 is returned, then the
+ * trace bits are kept as-is. Otherwise, the trace bits are overwritten with
+ * classified values.
+ *
+ * This accelerates the processing: in most cases, no interesting behavior
+ * happen, and the trace bits will be discarded soon. This function optimizes
+ * for such cases: one-pass scan on trace bits without modifying anything. Only
+ * on rare cases it fall backs to the slow path: classify_counts() first, then
+ * return has_new_bits(). */
+
+static inline u8 has_new_bits_unclassified(u8* virgin_map) {
+  classify_counts(trace_bits); // TODO
+  return has_new_bits(virgin_map);
+}
+
+
 /* Get rid of shared memory (atexit handler). */
 
 static void remove_shm(void) {
@@ -2318,7 +2334,6 @@ static u8 run_target(char** argv, u32 timeout) {
   MEM_BARRIER();
 
   tb4 = *(u32*)trace_bits;
-  classify_counts(trace_bits);
 
   prev_timed_out = child_timed_out;
 
@@ -2475,6 +2490,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
     write_to_testcase(use_mem, q->len);
 
     fault = run_target(argv, use_tmout);
+    classify_counts(trace_bits);
 
     /* stop_soon is set by the handler for Ctrl+C. When it's pressed,
        we want to bail out quickly. */
@@ -3013,24 +3029,26 @@ static void write_crash_readme(void) {
 
 /* Check if the result of an execve() during routine fuzzing is interesting,
    save or queue the input test case for further analysis if so. Returns 1 if
-   entry is saved, 0 otherwise. */
+   entry is saved, 0 otherwise. When invoking this function, trace bits should
+   not be classified. */
 
 static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
   u8  *fn = "";
   u8  hnb;
   s32 fd;
-  u8  keeping = 0, res;
+  u8  keeping = 0, res, classified = 0;
 
   if (fault == crash_mode) {
 
     /* Keep only if there are new bits in the map, add to queue for
        future fuzzing, etc. */
 
-    if (!(hnb = has_new_bits(virgin_bits))) {
+    if (!(hnb = has_new_bits_unclassified(virgin_bits))) {
       if (crash_mode) total_crashes++;
       return 0;
     }    
+    classified = hnb;
 
 #ifndef SIMPLE_FILES
 
@@ -3084,6 +3102,11 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
       if (!dumb_mode) {
 
+        if (!classified) {
+          classify_counts(trace_bits);
+          classified = 1;
+        }
+
         simplify_trace(trace_bits);
         if (!has_new_bits(virgin_tmout)) return keeping;
 
@@ -3100,6 +3123,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
         u8 new_fault;
         write_to_testcase(mem, len);
         new_fault = run_target(argv, hang_tmout);
+        classify_counts(trace_bits);
 
         /* A corner case that one user reported bumping into: increasing the
            timeout actually uncovers a crash. Make sure we don't discard it if
@@ -3142,6 +3166,11 @@ keep_as_crash:
       if (unique_crashes >= KEEP_UNIQUE_CRASH) return keeping;
 
       if (!dumb_mode) {
+
+        if (!classified) {
+          classify_counts(trace_bits);
+          classified = 1;
+        }
 
         simplify_trace(trace_bits);
         if (!has_new_bits(virgin_crash)) return keeping;
@@ -4413,6 +4442,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
       write_with_gap(in_buf, q->len, remove_pos, trim_avail);
 
       fault = run_target(argv, exec_tmout);
+      classify_counts(trace_bits);
       trim_execs++;
 
       if (stop_soon || fault == FAULT_ERROR) goto abort_trimming;
@@ -4505,6 +4535,7 @@ EXP_ST u8 common_fuzz_stuff(char** argv, u8* out_buf, u32 len) {
 
   write_to_testcase(out_buf, len);
 
+  /* Don't classify counts, leave the job to save_if_interesting. */
   fault = run_target(argv, exec_tmout);
 
   if (stop_soon) return 1;
@@ -6641,6 +6672,7 @@ static void sync_fuzzers(char** argv) {
         write_to_testcase(mem, st.st_size);
 
         fault = run_target(argv, exec_tmout);
+        /* Don't classify counts, leave the job to save_if_interesting. */
 
         if (stop_soon) return;
 
