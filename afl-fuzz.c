@@ -1096,7 +1096,21 @@ static inline u8 has_new_bits(u8* virgin_map) {
  * return has_new_bits(). */
 
 static inline u8 has_new_bits_unclassified(u8* virgin_map) {
-  classify_counts(trace_bits); // TODO
+
+  /* Handle the hot path first: no new coverage */
+  u8* end = trace_bits + MAP_SIZE;
+
+#ifdef WORD_SIZE_64
+
+  if (!skim((u64*)virgin_map, (u64*)trace_bits, (u64*)end)) return 0;
+
+#else
+
+  if (!skim((u32*)virgin_map, (u32*)trace_bits, (u32*)end)) return 0;
+
+#endif /* ^WORD_SIZE_64 */
+
+  classify_counts(trace_bits);
   return has_new_bits(virgin_map);
 }
 
@@ -3044,7 +3058,19 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     /* Keep only if there are new bits in the map, add to queue for
        future fuzzing, etc. */
 
-    if (!(hnb = has_new_bits_unclassified(virgin_bits))) {
+
+    /* A combination of classify_counts and has_new_bits. If 0 is returned, then
+     * the trace bits are kept as-is. Otherwise, the trace bits are overwritten
+     * with classified values.
+     *
+     * This accelerates the processing: in most cases, no interesting behavior
+     * happen, and the trace bits will be discarded soon. This function
+     * optimizes for such cases: one-pass scan on trace bits without modifying
+     * anything. Only on rare cases it fall backs to the slow path:
+     * classify_counts() first, then return has_new_bits(). */
+    hnb = has_new_bits_unclassified(virgin_bits);
+
+    if (!hnb) {
       if (crash_mode) total_crashes++;
       return 0;
     }    

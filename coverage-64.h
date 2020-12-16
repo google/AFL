@@ -1,6 +1,9 @@
 #include "config.h"
 #include "types.h"
 
+#if (defined(__AVX512F__) && defined(__AVX512DQ__)) || defined(__AVX2__)
+#  include <immintrin.h>
+#endif
 
 static inline u64 classify_word(u64 word) {
 
@@ -94,3 +97,78 @@ static inline void discover_word(u8* ret, u64* current, u64* virgin) {
   }
 
 }
+
+
+#if defined(__AVX512F__) && defined(__AVX512DQ__)
+#define PACK_SIZE 64
+static inline u32 skim(const u64* virgin, const u64* current, const u64* current_end) {
+
+  for (; current != current_end; virgin += 8, current += 8) {
+
+    __m512i value = *(__m512i*)current;
+    __mmask8 mask = _mm512_testn_epi64_mask(value, value);
+
+    /* All bytes are zero. */
+    if (mask == 0xff) continue;
+
+    /* Look for nonzero bytes and check for new bits. */
+#define UNROLL(x) \
+  if (!(mask & (1 << x)) && classify_word(current[x]) & virgin[x]) return 1
+    UNROLL(0); UNROLL(1); UNROLL(2); UNROLL(3);
+    UNROLL(4); UNROLL(5); UNROLL(6); UNROLL(7);
+#undef UNROLL
+
+  }
+
+  return 0;
+
+}
+#endif
+
+
+#if !defined(PACK_SIZE) && defined(__AVX2__)
+#define PACK_SIZE 32
+static inline u32 skim(const u64* virgin, const u64* current, const u64* current_end) {
+
+  __m256i zeroes = _mm256_setzero_si256();
+
+  for (; current != current_end; virgin += 4, current += 4) {
+
+    __m256i value = *(__m256i*)current;
+    __m256i cmp = _mm256_cmpeq_epi64(value, zeroes);
+    u32 mask = _mm256_movemask_epi8(cmp);
+
+    /* All bytes are zero. */
+    if (mask == -1) continue;
+
+    /* Look for nonzero bytes and check for new bits. */
+    if (!(mask & 0xff) && classify_word(current[0]) & virgin[0]) return 1;
+    if (!(mask & 0xff00) && classify_word(current[1]) & virgin[1]) return 1;
+    if (!(mask & 0xff0000) && classify_word(current[2]) & virgin[2]) return 1;
+    if (!(mask & 0xff000000) && classify_word(current[3]) & virgin[3]) return 1;
+
+  }
+
+  return 0;
+
+}
+#endif
+
+
+#if !defined(PACK_SIZE)
+#define PACK_SIZE 32
+static inline u32 skim(const u64* virgin, const u64* current, const u64* current_end) {
+
+  for (; current != current_end; virgin += 4, current += 4) {
+
+    if (current[0] && classify_word(current[0]) & virgin[0]) return 1;
+    if (current[1] && classify_word(current[1]) & virgin[1]) return 1;
+    if (current[2] && classify_word(current[2]) & virgin[2]) return 1;
+    if (current[3] && classify_word(current[3]) & virgin[3]) return 1;
+
+  }
+
+  return 0;
+
+}
+#endif
