@@ -1085,20 +1085,20 @@ static inline u8 has_new_bits(u8* virgin_map) {
 }
 
 
-/* A combination of classify_counts and has_new_bits. If 0 is returned, then the
- * trace bits are kept as-is. Otherwise, the trace bits are overwritten with
- * classified values.
+/* Check if the raw execution trace brings anything new to the table and update
+ * virgin bits to reflect the finds.
  *
- * This accelerates the processing: in most cases, no interesting behavior
- * happen, and the trace bits will be discarded soon. This function optimizes
- * for such cases: one-pass scan on trace bits without modifying anything. Only
- * on rare cases it fall backs to the slow path: classify_counts() first, then
- * return has_new_bits(). */
+ * If nothing new is discovered, then 0 is returned and the trace bits are kept
+ * as-is. Otherwise, the trace bits are classified in-place, and a nonzero value
+ * is returned: 1 if the only change is the hit-count for a particular tuple,
+ * and 2 if there are new tuples seen. */
 
 static inline u8 has_new_bits_unclassified(u8* virgin_map) {
 
-  /* Handle the hot path first: no new coverage */
   u8* end = trace_bits + MAP_SIZE;
+
+  /* For most cases nothing interesting happen. Here we scan the trace bits in
+   * one pass without modifying anything to accelerate the hot path. */
 
 #ifdef WORD_SIZE_64
 
@@ -1110,6 +1110,7 @@ static inline u8 has_new_bits_unclassified(u8* virgin_map) {
 
 #endif /* ^WORD_SIZE_64 */
 
+  /* Switch to the original logic because something new has been discovered. */
   classify_counts(trace_bits);
   return has_new_bits(virgin_map);
 }
