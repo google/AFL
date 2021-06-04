@@ -46,7 +46,7 @@ script:
   # Test fuzzing libFuzzer targets and trace-pc-guard instrumentation.
   - clang -g -fsanitize-coverage=trace-pc-guard ./test-libfuzzer-target.c -c
   - clang -c -w llvm_mode/afl-llvm-rt.o.c
-  - wget https://raw.githubusercontent.com/llvm/llvm-project/master/compiler-rt/lib/fuzzer/afl/afl_driver.cpp
+  - wget https://raw.githubusercontent.com/llvm/llvm-project/main/compiler-rt/lib/fuzzer/afl/afl_driver.cpp
   - clang++ afl_driver.cpp afl-llvm-rt.o.o test-libfuzzer-target.o -o test-libfuzzer-target
   - timeout --preserve-status 5s ./afl-fuzz -i seeds -o out/ -- ./test-libfuzzer-target
   - cd qemu_mode
