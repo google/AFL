@@ -896,84 +896,6 @@ EXP_ST void read_bitmap(u8* fname) {
 }
 
 
-/* Check if the current execution path brings anything new to the table.
-   Update virgin bits to reflect the finds. Returns 1 if the only change is
-   the hit-count for a particular tuple; 2 if there are new tuples seen. 
-   Updates the map, so subsequent calls will always return 0.
-
-   This function is called after every exec() on a fairly large buffer, so
-   it needs to be fast. We do this in 32-bit and 64-bit flavors. */
-
-static inline u8 has_new_bits(u8* virgin_map) {
-
-#ifdef WORD_SIZE_64
-
-  u64* current = (u64*)trace_bits;
-  u64* virgin  = (u64*)virgin_map;
-
-  u32  i = (MAP_SIZE >> 3);
-
-#else
-
-  u32* current = (u32*)trace_bits;
-  u32* virgin  = (u32*)virgin_map;
-
-  u32  i = (MAP_SIZE >> 2);
-
-#endif /* ^WORD_SIZE_64 */
-
-  u8   ret = 0;
-
-  while (i--) {
-
-    /* Optimize for (*current & *virgin) == 0 - i.e., no bits in current bitmap
-       that have not been already cleared from the virgin map - since this will
-       almost always be the case. */
-
-    if (unlikely(*current) && unlikely(*current & *virgin)) {
-
-      if (likely(ret < 2)) {
-
-        u8* cur = (u8*)current;
-        u8* vir = (u8*)virgin;
-
-        /* Looks like we have not found any new bytes yet; see if any non-zero
-           bytes in current[] are pristine in virgin[]. */
-
-#ifdef WORD_SIZE_64
-
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff) ||
-            (cur[4] && vir[4] == 0xff) || (cur[5] && vir[5] == 0xff) ||
-            (cur[6] && vir[6] == 0xff) || (cur[7] && vir[7] == 0xff)) ret = 2;
-        else ret = 1;
-
-#else
-
-        if ((cur[0] && vir[0] == 0xff) || (cur[1] && vir[1] == 0xff) ||
-            (cur[2] && vir[2] == 0xff) || (cur[3] && vir[3] == 0xff)) ret = 2;
-        else ret = 1;
-
-#endif /* ^WORD_SIZE_64 */
-
-      }
-
-      *virgin &= ~*current;
-
-    }
-
-    current++;
-    virgin++;
-
-  }
-
-  if (ret && virgin_map == virgin_bits) bitmap_changed = 1;
-
-  return ret;
-
-}
-
-
 /* Count the number of bits set in the provided bitmap. Used for the status
    screen several times every second, does not have to be fast. */
 
@@ -1076,65 +998,6 @@ static const u8 simplify_lookup[256] = {
 
 };
 
-#ifdef WORD_SIZE_64
-
-static void simplify_trace(u64* mem) {
-
-  u32 i = MAP_SIZE >> 3;
-
-  while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
-      u8* mem8 = (u8*)mem;
-
-      mem8[0] = simplify_lookup[mem8[0]];
-      mem8[1] = simplify_lookup[mem8[1]];
-      mem8[2] = simplify_lookup[mem8[2]];
-      mem8[3] = simplify_lookup[mem8[3]];
-      mem8[4] = simplify_lookup[mem8[4]];
-      mem8[5] = simplify_lookup[mem8[5]];
-      mem8[6] = simplify_lookup[mem8[6]];
-      mem8[7] = simplify_lookup[mem8[7]];
-
-    } else *mem = 0x0101010101010101ULL;
-
-    mem++;
-
-  }
-
-}
-
-#else
-
-static void simplify_trace(u32* mem) {
-
-  u32 i = MAP_SIZE >> 2;
-
-  while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
-      u8* mem8 = (u8*)mem;
-
-      mem8[0] = simplify_lookup[mem8[0]];
-      mem8[1] = simplify_lookup[mem8[1]];
-      mem8[2] = simplify_lookup[mem8[2]];
-      mem8[3] = simplify_lookup[mem8[3]];
-
-    } else *mem = 0x01010101;
-
-    mem++;
-  }
-
-}
-
-#endif /* ^WORD_SIZE_64 */
-
 
 /* Destructively classify execution counts in a trace. This is used as a
    preprocessing step for any newly acquired traces. Called on every exec,
@@ -1169,60 +1032,88 @@ EXP_ST void init_count_class16(void) {
 
 }
 
+/* Import coverage processing routines. */
+
+#ifdef WORD_SIZE_64
+#  include "coverage-64.h"
+#else
+#  include "coverage-32.h"
+#endif
+
+
+/* Check if the current execution path brings anything new to the table.
+   Update virgin bits to reflect the finds. Returns 1 if the only change is
+   the hit-count for a particular tuple; 2 if there are new tuples seen. 
+   Updates the map, so subsequent calls will always return 0.
+
+   This function is called after every exec() on a fairly large buffer, so
+   it needs to be fast. We do this in 32-bit and 64-bit flavors. */
+
+static inline u8 has_new_bits(u8* virgin_map) {
 
 #ifdef WORD_SIZE_64
 
-static inline void classify_counts(u64* mem) {
+  u64* current = (u64*)trace_bits;
+  u64* virgin  = (u64*)virgin_map;
 
-  u32 i = MAP_SIZE >> 3;
-
-  while (i--) {
-
-    /* Optimize for sparse bitmaps. */
-
-    if (unlikely(*mem)) {
-
-      u16* mem16 = (u16*)mem;
-
-      mem16[0] = count_class_lookup16[mem16[0]];
-      mem16[1] = count_class_lookup16[mem16[1]];
-      mem16[2] = count_class_lookup16[mem16[2]];
-      mem16[3] = count_class_lookup16[mem16[3]];
-
-    }
-
-    mem++;
-
-  }
-
-}
+  u32  i = (MAP_SIZE >> 3);
 
 #else
 
-static inline void classify_counts(u32* mem) {
+  u32* current = (u32*)trace_bits;
+  u32* virgin  = (u32*)virgin_map;
 
-  u32 i = MAP_SIZE >> 2;
+  u32  i = (MAP_SIZE >> 2);
+
+#endif /* ^WORD_SIZE_64 */
+
+  u8   ret = 0;
 
   while (i--) {
 
-    /* Optimize for sparse bitmaps. */
+    if (unlikely(*current)) discover_word(&ret, current, virgin);
 
-    if (unlikely(*mem)) {
-
-      u16* mem16 = (u16*)mem;
-
-      mem16[0] = count_class_lookup16[mem16[0]];
-      mem16[1] = count_class_lookup16[mem16[1]];
-
-    }
-
-    mem++;
+    current++;
+    virgin++;
 
   }
 
+  if (ret && virgin_map == virgin_bits) bitmap_changed = 1;
+
+  return ret;
+
 }
 
+
+/* Check if the raw execution trace brings anything new to the table and update
+ * virgin bits to reflect the finds.
+ *
+ * If nothing new is discovered, then 0 is returned and the trace bits are kept
+ * as-is. Otherwise, the trace bits are classified in-place, and a nonzero value
+ * is returned: 1 if the only change is the hit-count for a particular tuple,
+ * and 2 if there are new tuples seen. */
+
+static inline u8 has_new_bits_unclassified(u8* virgin_map) {
+
+  u8* end = trace_bits + MAP_SIZE;
+
+  /* For most cases nothing interesting happen. Here we scan the trace bits in
+   * one pass without modifying anything to accelerate the hot path. */
+
+#ifdef WORD_SIZE_64
+
+  if (!skim((u64*)virgin_map, (u64*)trace_bits, (u64*)end)) return 0;
+
+#else
+
+  if (!skim((u32*)virgin_map, (u32*)trace_bits, (u32*)end)) return 0;
+
 #endif /* ^WORD_SIZE_64 */
+
+  /* Switch to the original logic because something new has been discovered. */
+  classify_counts(trace_bits);
+  return has_new_bits(virgin_map);
+}
 
 
 /* Get rid of shared memory (atexit handler). */
@@ -2459,12 +2350,6 @@ static u8 run_target(char** argv, u32 timeout) {
 
   tb4 = *(u32*)trace_bits;
 
-#ifdef WORD_SIZE_64
-  classify_counts((u64*)trace_bits);
-#else
-  classify_counts((u32*)trace_bits);
-#endif /* ^WORD_SIZE_64 */
-
   prev_timed_out = child_timed_out;
 
   /* Report outcome to caller. */
@@ -2620,6 +2505,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
     write_to_testcase(use_mem, q->len);
 
     fault = run_target(argv, use_tmout);
+    classify_counts(trace_bits);
 
     /* stop_soon is set by the handler for Ctrl+C. When it's pressed,
        we want to bail out quickly. */
@@ -3158,24 +3044,38 @@ static void write_crash_readme(void) {
 
 /* Check if the result of an execve() during routine fuzzing is interesting,
    save or queue the input test case for further analysis if so. Returns 1 if
-   entry is saved, 0 otherwise. */
+   entry is saved, 0 otherwise. When invoking this function, trace bits should
+   not be classified. */
 
 static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
   u8  *fn = "";
   u8  hnb;
   s32 fd;
-  u8  keeping = 0, res;
+  u8  keeping = 0, res, classified = 0;
 
   if (fault == crash_mode) {
 
     /* Keep only if there are new bits in the map, add to queue for
        future fuzzing, etc. */
 
-    if (!(hnb = has_new_bits(virgin_bits))) {
+
+    /* A combination of classify_counts and has_new_bits. If 0 is returned, then
+     * the trace bits are kept as-is. Otherwise, the trace bits are overwritten
+     * with classified values.
+     *
+     * This accelerates the processing: in most cases, no interesting behavior
+     * happen, and the trace bits will be discarded soon. This function
+     * optimizes for such cases: one-pass scan on trace bits without modifying
+     * anything. Only on rare cases it fall backs to the slow path:
+     * classify_counts() first, then return has_new_bits(). */
+    hnb = has_new_bits_unclassified(virgin_bits);
+
+    if (!hnb) {
       if (crash_mode) total_crashes++;
       return 0;
     }    
+    classified = hnb;
 
 #ifndef SIMPLE_FILES
 
@@ -3229,12 +3129,12 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
       if (!dumb_mode) {
 
-#ifdef WORD_SIZE_64
-        simplify_trace((u64*)trace_bits);
-#else
-        simplify_trace((u32*)trace_bits);
-#endif /* ^WORD_SIZE_64 */
+        if (!classified) {
+          classify_counts(trace_bits);
+          classified = 1;
+        }
 
+        simplify_trace(trace_bits);
         if (!has_new_bits(virgin_tmout)) return keeping;
 
       }
@@ -3250,6 +3150,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
         u8 new_fault;
         write_to_testcase(mem, len);
         new_fault = run_target(argv, hang_tmout);
+        classify_counts(trace_bits);
 
         /* A corner case that one user reported bumping into: increasing the
            timeout actually uncovers a crash. Make sure we don't discard it if
@@ -3293,12 +3194,12 @@ keep_as_crash:
 
       if (!dumb_mode) {
 
-#ifdef WORD_SIZE_64
-        simplify_trace((u64*)trace_bits);
-#else
-        simplify_trace((u32*)trace_bits);
-#endif /* ^WORD_SIZE_64 */
+        if (!classified) {
+          classify_counts(trace_bits);
+          classified = 1;
+        }
 
+        simplify_trace(trace_bits);
         if (!has_new_bits(virgin_crash)) return keeping;
 
       }
@@ -4568,6 +4469,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
       write_with_gap(in_buf, q->len, remove_pos, trim_avail);
 
       fault = run_target(argv, exec_tmout);
+      classify_counts(trace_bits);
       trim_execs++;
 
       if (stop_soon || fault == FAULT_ERROR) goto abort_trimming;
@@ -4660,6 +4562,7 @@ EXP_ST u8 common_fuzz_stuff(char** argv, u8* out_buf, u32 len) {
 
   write_to_testcase(out_buf, len);
 
+  /* Don't classify counts, leave the job to save_if_interesting. */
   fault = run_target(argv, exec_tmout);
 
   if (stop_soon) return 1;
@@ -6796,6 +6699,7 @@ static void sync_fuzzers(char** argv) {
         write_to_testcase(mem, st.st_size);
 
         fault = run_target(argv, exec_tmout);
+        /* Don't classify counts, leave the job to save_if_interesting. */
 
         if (stop_soon) return;
 
