@@ -136,6 +136,7 @@ EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            run_over10m,               /* Run time over 10 minutes?        */
            persistent_mode,           /* Running in persistent mode?      */
            deferred_mode,             /* Deferred forkserver mode?        */
+           force_det_dictionary,      /* Force deterministic dictionary?  */
            fast_cal;                  /* Try to calibrate faster?         */
 
 static s32 out_fd,                    /* Persistent fd for out_file       */
@@ -5146,7 +5147,7 @@ static u8 fuzz_one(char** argv) {
      this entry ourselves (was_fuzzed), or if it has gone through deterministic
      testing in earlier, resumed runs (passed_det). */
 
-  if (skip_deterministic || queue_cur->was_fuzzed || queue_cur->passed_det)
+  if ((skip_deterministic && !force_det_dictionary) || queue_cur->was_fuzzed || queue_cur->passed_det)
     goto havoc_stage;
 
   /* Skip deterministic fuzzing if exec path checksum puts this out of scope
@@ -5156,6 +5157,10 @@ static u8 fuzz_one(char** argv) {
     goto havoc_stage;
 
   doing_det = 1;
+
+  /* We skip deterministic steps but still perform the dictionary mutation deterministically */
+  if (skip_deterministic && force_det_dictionary)
+   goto dict_stage;
 
   /*********************************************
    * SIMPLE BITFLIP (+dictionary construction) *
@@ -5944,6 +5949,10 @@ skip_interest:
    * DICTIONARY STUFF *
    ********************/
 
+dict_stage:
+
+  new_hit_cnt = queued_paths + unique_crashes; 
+
   if (!extras_cnt) goto skip_user_extras;
 
   /* Overwrite with user-supplied extras. */
@@ -5978,7 +5987,8 @@ skip_interest:
       if ((extras_cnt > MAX_DET_EXTRAS && UR(extras_cnt) >= MAX_DET_EXTRAS) ||
           extras[j].len > len - i ||
           !memcmp(extras[j].data, out_buf + i, extras[j].len) ||
-          !memchr(eff_map + EFF_APOS(i), 1, EFF_SPAN_ALEN(i, extras[j].len))) {
+          /* WARNING: eff_map is not allocated if skip_deterministic and force_det_dictionary are set */
+          (eff_map && !memchr(eff_map + EFF_APOS(i), 1, EFF_SPAN_ALEN(i, extras[j].len)))) {
 
         stage_max--;
         continue;
@@ -6162,7 +6172,7 @@ havoc_stage:
  
     for (i = 0; i < use_stacking; i++) {
 
-      switch (UR(15 + ((extras_cnt + a_extras_cnt) ? 2 : 0))) {
+      switch (UR(15 + ((!force_det_dictionary && (extras_cnt + a_extras_cnt)) ? 2 : 0))) {
 
         case 0:
 
@@ -7853,6 +7863,7 @@ int main(int argc, char** argv) {
 
         if (extras_dir) FATAL("Multiple -x options not supported");
         extras_dir = optarg;
+        // force_det_dictionary = 1;
         break;
 
       case 't': { /* timeout */
