@@ -62,6 +62,8 @@ if [ ! -f "../afl-showmap" ]; then
 fi
 
 
+DEPENDENCY_ERR=false
+
 for i in libtool wget python automake autoconf sha384sum bison iconv; do
 
   T=`which "$i" 2>/dev/null`
@@ -69,7 +71,7 @@ for i in libtool wget python automake autoconf sha384sum bison iconv; do
   if [ "$T" = "" ]; then
 
     echo "[-] Error: '$i' not found, please install first."
-    exit 1
+    DEPENDENCY_ERR=true
 
   fi
 
@@ -78,16 +80,23 @@ done
 if [ ! -d "/usr/include/glib-2.0/" -a ! -d "/usr/local/include/glib-2.0/" ]; then
 
   echo "[-] Error: devel version of 'glib2' not found, please install first."
-  exit 1
+  DEPENDENCY_ERR=true
+
+fi
+
+if [ "$DEPENDENCY_ERR" = true ]; then
+
+    echo "[-] Error: dependencies missing. Please install them and try again!"
+    exit 1
 
 fi
 
 if echo "$CC" | grep -qF /afl-; then
 
   echo "[-] Error: do not use afl-gcc or afl-clang to compile this tool."
-  exit 1
 
 fi
+
 
 echo "[+] All checks passed!"
 
