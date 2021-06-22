@@ -41,42 +41,46 @@
 #define _HAVE_ARGV_FUZZ_INL
 
 #include <unistd.h>
-#include <ctype.h>
 
-#define AFL_INIT_ARGV() do { argv = afl_init_argv(&argc); } while (0)
-
-#define AFL_INIT_SET0(_p) do { \
+#define AFL_INIT_ARGV()          \
+  do {                           \
+                                 \
     argv = afl_init_argv(&argc); \
-    argv[0] = (_p); \
-    if (!argc) argc = 1; \
+                                 \
+  } while (0)
+
+#define AFL_INIT_SET0(_p)        \
+  do {                           \
+                                 \
+    argv = afl_init_argv(&argc); \
+    argv[0] = (_p);              \
+    if (!argc) argc = 1;         \
+                                 \
   } while (0)
 
 #define MAX_CMDLINE_LEN 100000
-#define MAX_CMDLINE_PAR 1000
+#define MAX_CMDLINE_PAR 50000
 
-static char** afl_init_argv(int* argc) {
+static char **afl_init_argv(int *argc) {
 
   static char  in_buf[MAX_CMDLINE_LEN];
-  static char* ret[MAX_CMDLINE_PAR];
+  static char *ret[MAX_CMDLINE_PAR];
 
-  char* ptr = in_buf;
-  int   rc  = 1; /* start after argv[0] */
+  char *ptr = in_buf;
+  int   rc = 0;
 
-  if (read(0, in_buf, MAX_CMDLINE_LEN - 2) < 0);
+  if (read(0, in_buf, MAX_CMDLINE_LEN - 2) < 0) {}
 
-  while (*ptr) {
+  while (*ptr && rc < MAX_CMDLINE_PAR) {
 
     ret[rc] = ptr;
+    if (ret[rc][0] == 0x02 && !ret[rc][1]) ret[rc]++;
+    rc++;
 
-    /* insert '\0' at the end of ret[rc] on first space-sym */
-    while (*ptr && !isspace(*ptr)) ptr++;
-    *ptr = '\0';
+    while (*ptr)
+      ptr++;
     ptr++;
 
-    /* skip more space-syms */
-    while (*ptr && isspace(*ptr)) ptr++;
-
-    rc++;
   }
 
   *argc = rc;
