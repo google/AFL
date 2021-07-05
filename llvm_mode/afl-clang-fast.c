@@ -103,7 +103,7 @@ static void find_obj(u8* argv0) {
 
 static void edit_params(u32 argc, char** argv) {
 
-  u8 fortify_set = 0, asan_set = 0, x_set = 0, bit_mode = 0;
+  u8 fortify_set = 0, asan_set = 0, x_set = 0, bit_mode = 0, partial_linking = 0;
   u8 *name;
 
   cc_params = ck_alloc((argc + 128) * sizeof(u8*));
@@ -147,6 +147,10 @@ static void edit_params(u32 argc, char** argv) {
     if (!strcmp(cur, "-m32")) bit_mode = 32;
     if (!strcmp(cur, "armv7a-linux-androideabi")) bit_mode = 32;
     if (!strcmp(cur, "-m64")) bit_mode = 64;
+
+    if (!strcmp(cur, "-Wl,-r") ||
+        !strcmp(cur, "-Wl,-i") ||
+        !strcmp(cur, "-r")) partial_linking = 1;
 
     if (!strcmp(cur, "-x")) x_set = 1;
 
@@ -278,28 +282,30 @@ static void edit_params(u32 argc, char** argv) {
   }
 
 #ifndef __ANDROID__
-  switch (bit_mode) {
+  if (!partial_linking) {
+    switch (bit_mode) {
 
-    case 0:
-      cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt.o", obj_path);
-      break;
+      case 0:
+        cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt.o", obj_path);
+        break;
 
-    case 32:
-      cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-32.o", obj_path);
+      case 32:
+        cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-32.o", obj_path);
 
-      if (access(cc_params[cc_par_cnt - 1], R_OK))
-        FATAL("-m32 is not supported by your compiler");
+        if (access(cc_params[cc_par_cnt - 1], R_OK))
+          FATAL("-m32 is not supported by your compiler");
 
-      break;
+        break;
 
-    case 64:
-      cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-64.o", obj_path);
+      case 64:
+        cc_params[cc_par_cnt++] = alloc_printf("%s/afl-llvm-rt-64.o", obj_path);
 
-      if (access(cc_params[cc_par_cnt - 1], R_OK))
-        FATAL("-m64 is not supported by your compiler");
+        if (access(cc_params[cc_par_cnt - 1], R_OK))
+          FATAL("-m64 is not supported by your compiler");
 
-      break;
+        break;
 
+    }
   }
 #endif
 
