@@ -1,0 +1,19 @@
+*** qemu-2.12.1-clean/include/disas/capstone.h	2018-08-02 16:48:53.000000000 -0500
+--- qemu-2.12.1/include/disas/capstone.h	2019-10-26 19:51:15.596113994 -0500
+***************
+*** 3,9 ****
+  
+  #ifdef CONFIG_CAPSTONE
+  
+! #include <capstone.h>
+  
+  #else
+  
+--- 3,9 ----
+  
+  #ifdef CONFIG_CAPSTONE
+  
+! #include <capstone/capstone.h>
+  
+  #else
+  

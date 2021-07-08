@@ -100,12 +100,15 @@ struct afl_tsl {
   target_ulong pc;
   target_ulong cs_base;
   uint64_t flags;
+  uint32_t cflags;
+  //uint32_t cf_mask;
 };
 
 /* Some forward decls: */
 
-TranslationBlock *tb_htable_lookup(CPUState*, target_ulong, target_ulong, uint32_t);
-static inline TranslationBlock *tb_find(CPUState*, TranslationBlock*, int);
+TranslationBlock *tb_htable_lookup(CPUState*, target_ulong, target_ulong, uint32_t, uint32_t);
+static inline TranslationBlock *tb_find(CPUState*, TranslationBlock*, int, uint32_t);
+
 
 /*************************
  * ACTUAL IMPLEMENTATION *
@@ -295,15 +298,16 @@ static void afl_wait_tsl(CPUState *cpu, int fd) {
 
     if (read(fd, &t, sizeof(struct afl_tsl)) != sizeof(struct afl_tsl))
       break;
-
-    tb = tb_htable_lookup(cpu, t.pc, t.cs_base, t.flags);
+    // taken from qemu-2.12.1/accel/tcg/cpu-exec.c:240,241
+    tb = tb_htable_lookup(cpu, t.pc, t.cs_base, t.flags, 1 & CF_HASH_MASK);
 
     if(!tb) {
       mmap_lock();
-      tb_lock();
-      tb_gen_code(cpu, t.pc, t.cs_base, t.flags, 0);
+      // tb_lock(); in qemu-4.1.0 cpu_exec_step_atomic no longer locks tb
+      // taken from qemu-2.12.1/accel/tcg/cpu-exec.c:240,241
+      tb_gen_code(cpu, t.pc, t.cs_base, t.flags, 1 & CF_HASH_MASK);
       mmap_unlock();
-      tb_unlock();
+      // tb_unlock(); see four lines above (no longer locks)
     }
 
   }
